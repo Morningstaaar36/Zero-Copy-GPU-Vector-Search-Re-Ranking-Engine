@@ -53,7 +53,7 @@ cmake --build build -j
 | --- | --- | --- |
 | `ZCGVS_BUILD_PYTHON` | ON | The pybind11 module |
 | `ZCGVS_BUILD_APPS` | ON | CLI and kernel benchmark |
-| `ZCGVS_BUILD_TESTS` | ON | The eight CUDA harnesses |
+| `ZCGVS_BUILD_TESTS` | ON | The nine CUDA harnesses |
 | `ZCGVS_ENABLE_NVTX` | OFF | Nsight Systems ranges |
 | `CMAKE_CUDA_ARCHITECTURES` | `native` | Set explicitly for cross-compilation, e.g. `-DCMAKE_CUDA_ARCHITECTURES=86` |
 
@@ -224,6 +224,21 @@ curl -s -X POST localhost:8000/retrieve -H 'content-type: application/json' \
 curl -s -X POST localhost:8000/documents -H 'content-type: application/json' \
   -d '{"ids": ["x1"], "texts": ["a passage added at runtime"]}'
 ```
+
+Start the service with `--llama models/llama/Llama-3.2-3B-Instruct` (or a Hub id) to add the
+Llama endpoints:
+
+```bash
+curl -s -X POST localhost:8000/verify -H 'content-type: application/json' \
+  -d '{"claim": "Aspirin reduces colorectal cancer risk.", "evidence_k": 3, "explain": true}'
+
+curl -s -X POST localhost:8000/ask -H 'content-type: application/json' \
+  -d '{"question": "What links obesity to insulin resistance?", "k": 5}'
+```
+
+`/verify` returns the verdict, calibrated label probabilities, the explanation, the evidence
+and a per-stage timing breakdown; `/ask` returns the answer and its sources. See
+[LLAMA.md](LLAMA.md).
 
 Every per-request option is exposed: `metric`, `allow`, `hybrid`, `dense_weight`,
 `rescore_candidates`, `rerank`, `backend`, `use_graph`.
