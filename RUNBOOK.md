@@ -19,6 +19,7 @@ bash scripts/verify.sh       # all checks: formats, 9 CUDA kernel tests, engine,
 bash scripts/bench_all.sh    # kernel roofline + end-to-end latency + retrieval quality
 bash scripts/build.sh        # recompile after editing C++/CUDA
 bash scripts/run_factcheck.sh  # Llama 3.2 fact-check of one claim (CLAIM="..." to change it)
+python scripts/make_figures.py # regenerate docs/assets/*.svg from docs/results/*.json
 ```
 
 Llama weights live in `models/llama/` (fetched by `scripts/download_llama.sh`). The Llama
