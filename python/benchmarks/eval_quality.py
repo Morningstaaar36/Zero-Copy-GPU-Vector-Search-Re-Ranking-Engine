@@ -70,7 +70,8 @@ def evaluate(config_path: str, args: argparse.Namespace, queries, qrels,
     options = engine.default_options()
     options.top_k = args.top_k
     options.candidates = args.candidates
-    options.hybrid = args.hybrid and engine.has_lexical_index
+    # default_options() already carries the config's own "hybrid" flag; --hybrid forces it on.
+    options.hybrid = (args.hybrid or options.hybrid) and engine.has_lexical_index
 
     for query_id, query_text in queries:
         relevant = qrels[query_id]
