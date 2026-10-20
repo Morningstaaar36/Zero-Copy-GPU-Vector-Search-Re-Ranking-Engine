@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 412" width="900" height="412" role="img" aria-labelledby="t d" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<title id="t">Zero-Copy GPU Vector Search and Re-Ranking Engine</title>
+<desc id="d">Pipeline from a text claim through a CUDA GPU search (0.08 ms), a cross-encoder re-rank (77 ms), a Llama 3.2 verdict (153 ms) and a streamed, quote-checked explanation, with four headline numbers.</desc>
+<style>
+.bg{fill:#fcfcfb}.panel{fill:#f4f3f0;stroke:#e4e3df}.line{stroke:#c9c8c2;fill:none}
+.t1{fill:#0b0b0b}.t2{fill:#52514e}.t3{fill:#6b6a65}
+.blue{fill:#2a78d6}.orange{fill:#eb6834}.gray{fill:#8a8982}.good{fill:#0ca30c}
+.arrow{stroke:#52514e;fill:none}
+@media (prefers-color-scheme:dark){
+.bg{fill:#1a1a19}.panel{fill:#232321;stroke:#34342f}.line{stroke:#4a4a45}
+.t1{fill:#f0efec}.t2{fill:#c3c2b7}.t3{fill:#a09f95}
+.blue{fill:#3987e5}.orange{fill:#d95926}.gray{fill:#6b6a65}.good{fill:#0ca30c}
+.arrow{stroke:#c3c2b7}}
+</style>
+<rect class="bg" width="900" height="412" rx="10"/>
+<text class="t1" x="30" y="46" font-size="25" font-weight="700" text-anchor="start" >Zero-Copy GPU Vector Search &amp; Re-Ranking Engine</text>
+<text class="t2" x="30" y="72" font-size="14" font-weight="400" text-anchor="start" >Hand-written CUDA search at memory speed, plus Meta Llama 3.2 that reads the evidence and shows its sources.</text>
+<rect class="panel" x="24" y="100" width="148" height="156" rx="9"/>
+<path class="gray" d="M24,109 a9,9 0 0 1 9,-9 h130 a9,9 0 0 1 9,9 v1 h-148 z"/>
+<rect class="gray" x="24" y="108" width="148" height="3"/>
+<text class="t1" x="38" y="134" font-size="13.5" font-weight="700" text-anchor="start" >1 · Claim</text>
+<text class="t2" x="38" y="158" font-size="12" font-weight="400" text-anchor="start" >“Aspirin reduces</text>
+<text class="t2" x="38" y="174" font-size="12" font-weight="400" text-anchor="start" >colorectal cancer risk.”</text>
+<text class="t1" x="38" y="220" font-size="23" font-weight="700" text-anchor="start" >text in</text>
+<path class="arrow" d="M177,171.0 l9,7 l-9,7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect class="panel" x="200" y="100" width="148" height="156" rx="9"/>
+<path class="blue" d="M200,109 a9,9 0 0 1 9,-9 h130 a9,9 0 0 1 9,9 v1 h-148 z"/>
+<rect class="blue" x="200" y="108" width="148" height="3"/>
+<text class="t1" x="214" y="134" font-size="13.5" font-weight="700" text-anchor="start" >2 · GPU search</text>
+<text class="t2" x="214" y="158" font-size="12" font-weight="400" text-anchor="start" >Custom CUDA scan and</text>
+<text class="t2" x="214" y="174" font-size="12" font-weight="400" text-anchor="start" >top-K, all in VRAM</text>
+<text class="t1" x="214" y="220" font-size="23" font-weight="700" text-anchor="start" >0.08 ms</text>
+<text class="t3" x="214" y="240" font-size="11.5" font-weight="400" text-anchor="start" >5,183 abstracts</text>
+<path class="arrow" d="M353,171.0 l9,7 l-9,7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect class="panel" x="376" y="100" width="148" height="156" rx="9"/>
+<path class="gray" d="M376,109 a9,9 0 0 1 9,-9 h130 a9,9 0 0 1 9,9 v1 h-148 z"/>
+<rect class="gray" x="376" y="108" width="148" height="3"/>
+<text class="t1" x="390" y="134" font-size="13.5" font-weight="700" text-anchor="start" >3 · Re-rank</text>
+<text class="t2" x="390" y="158" font-size="12" font-weight="400" text-anchor="start" >A cross-encoder reads</text>
+<text class="t2" x="390" y="174" font-size="12" font-weight="400" text-anchor="start" >100 results, keeps 3</text>
+<text class="t1" x="390" y="220" font-size="23" font-weight="700" text-anchor="start" >77 ms</text>
+<text class="t3" x="390" y="240" font-size="11.5" font-weight="400" text-anchor="start" >ONNX model</text>
+<path class="arrow" d="M529,171.0 l9,7 l-9,7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect class="panel" x="552" y="100" width="148" height="156" rx="9"/>
+<path class="orange" d="M552,109 a9,9 0 0 1 9,-9 h130 a9,9 0 0 1 9,9 v1 h-148 z"/>
+<rect class="orange" x="552" y="108" width="148" height="3"/>
+<text class="t1" x="566" y="134" font-size="13.5" font-weight="700" text-anchor="start" >4 · Verdict</text>
+<text class="t2" x="566" y="158" font-size="12" font-weight="400" text-anchor="start" >Llama 3.2 reads the 3</text>
+<text class="t2" x="566" y="174" font-size="12" font-weight="400" text-anchor="start" >abstracts in ONE pass</text>
+<text class="t1" x="566" y="220" font-size="23" font-weight="700" text-anchor="start" >153 ms</text>
+<text class="t3" x="566" y="240" font-size="11.5" font-weight="400" text-anchor="start" >calibrated</text>
+<path class="arrow" d="M705,171.0 l9,7 l-9,7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect class="panel" x="728" y="100" width="148" height="156" rx="9"/>
+<path class="orange" d="M728,109 a9,9 0 0 1 9,-9 h130 a9,9 0 0 1 9,9 v1 h-148 z"/>
+<rect class="orange" x="728" y="108" width="148" height="3"/>
+<text class="t1" x="742" y="134" font-size="13.5" font-weight="700" text-anchor="start" >5 · Explain</text>
+<text class="t2" x="742" y="158" font-size="12" font-weight="400" text-anchor="start" >Cited, quote-checked,</text>
+<text class="t2" x="742" y="174" font-size="12" font-weight="400" text-anchor="start" >streamed live</text>
+<text class="t1" x="742" y="220" font-size="23" font-weight="700" text-anchor="start" >49 tok/s</text>
+<text class="t3" x="742" y="240" font-size="11.5" font-weight="400" text-anchor="start" >3B, bf16</text>
+<rect class="blue" x="24" y="274" width="12" height="12" rx="2"/>
+<text class="t2" x="42" y="284" font-size="12.5" font-weight="400" text-anchor="start" >written from scratch in CUDA</text>
+<rect class="orange" x="246" y="274" width="12" height="12" rx="2"/>
+<text class="t2" x="264" y="284" font-size="12.5" font-weight="400" text-anchor="start" >Meta Llama 3.2</text>
+<rect class="gray" x="388" y="274" width="12" height="12" rx="2"/>
+<text class="t2" x="406" y="284" font-size="12.5" font-weight="400" text-anchor="start" >off-the-shelf component</text>
+<text class="t3" x="876" y="284" font-size="11.5" font-weight="400" text-anchor="end" >median timings, RTX 5060 Ti</text>
+<rect class="panel" x="24" y="322" width="207" height="72" rx="9"/>
+<text class="t1" x="38" y="352" font-size="22" font-weight="700" text-anchor="start" >87–94%</text>
+<text class="t2" x="38" y="370" font-size="11.5" font-weight="400" text-anchor="start" >of GPU memory bandwidth,</text>
+<text class="t3" x="38" y="384" font-size="11" font-weight="400" text-anchor="start" >every storage precision</text>
+<rect class="panel" x="243" y="322" width="207" height="72" rx="9"/>
+<text class="t1" x="257" y="352" font-size="22" font-weight="700" text-anchor="start" >= cuBLAS</text>
+<text class="t2" x="257" y="370" font-size="11.5" font-weight="400" text-anchor="start" >fp32 scan: 3.650 ms vs 3.625 ms</text>
+<text class="t3" x="257" y="384" font-size="11" font-weight="400" text-anchor="start" >on 1M × 384 vectors</text>
+<rect class="panel" x="462" y="322" width="207" height="72" rx="9"/>
+<text class="t1" x="476" y="352" font-size="22" font-weight="700" text-anchor="start" >9 suites</text>
+<text class="t2" x="476" y="370" font-size="11.5" font-weight="400" text-anchor="start" >of CUDA tests, each checked</text>
+<text class="t3" x="476" y="384" font-size="11" font-weight="400" text-anchor="start" >against a CPU reference</text>
+<rect class="panel" x="681" y="322" width="207" height="72" rx="9"/>
+<text class="t1" x="695" y="352" font-size="22" font-weight="700" text-anchor="start" >0.514</text>
+<text class="t2" x="695" y="370" font-size="11.5" font-weight="400" text-anchor="start" >macro-F1 on 300 held-out</text>
+<text class="t3" x="695" y="384" font-size="11" font-weight="400" text-anchor="start" >claims (baseline: 0.195)</text>
+</svg>
