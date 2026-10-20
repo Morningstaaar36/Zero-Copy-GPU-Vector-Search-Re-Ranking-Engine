@@ -63,10 +63,10 @@ question the table answers is whether the kernel stays near roofline as the rows
 
 | Storage | Bytes scanned | Median ms | GB/s | % of peak |
 | --- | ---: | ---: | ---: | ---: |
-| float32 | 1.54 GB | 3.648 | 421.0 | 94% |
-| float16 | 0.77 GB | 1.870 | 410.6 | 92% |
-| int8 | 0.38 GB | 0.957 | 401.1 | 90% |
-| binary | 0.05 GB | 0.122 | 392.6 | 88% |
+| float32 | 1.54 GB | 3.650 | 420.9 | 94% |
+| float16 | 0.77 GB | 1.872 | 410.2 | 92% |
+| int8 | 0.38 GB | 0.959 | 400.4 | 89% |
+| binary | 0.05 GB | 0.124 | 388.6 | 87% |
 | cuBLAS `sgemv` (float32) | 1.54 GB | 3.625 | 423.7 | 95% |
 
 **Before → after the persistent-kernel rewrite.** The first version of the scan launched one
@@ -76,11 +76,11 @@ memory. At 1M documents that is ~12 GB of redundant query traffic to scan a 0.05
 
 | Storage | Block-per-doc (v1) | Persistent warp-per-doc (v2) | Speedup |
 | --- | ---: | ---: | ---: |
-| float32 | 7.279 ms · 47% of peak | 3.648 ms · 94% | 2.0× |
-| float16 | 7.769 ms · 22% | 1.870 ms · 92% | 4.2× |
-| int8 | 7.938 ms · 11% | 0.957 ms · 90% | 8.3× |
-| binary | 5.425 ms · 2% | 0.122 ms · 88% | 44× |
-| full pipeline, batch 8 | 334 q/s | 1428 q/s | 4.3× |
+| float32 | 7.279 ms · 47% of peak | 3.650 ms · 94% | 2.0× |
+| float16 | 7.769 ms · 22% | 1.872 ms · 92% | 4.2× |
+| int8 | 7.938 ms · 11% | 0.959 ms · 89% | 8.3× |
+| binary | 5.425 ms · 2% | 0.124 ms · 87% | 44× |
+| full pipeline, batch 8 | 334 q/s | 1429 q/s | 4.3× |
 
 v2 stages the queries once per *resident* block, sizes the grid to exactly fill the GPU
 (`cudaOccupancyMaxActiveBlocksPerMultiprocessor`), gives each warp a document with 128-bit
@@ -118,9 +118,9 @@ obvious next kernel.
 
 | Batch | Direct launch (ms) | Graph replay (ms) | Direct q/s | Graph q/s |
 | --- | ---: | ---: | ---: | ---: |
-| 1 | 2.405 | 2.402 | 416 | 416 |
-| 8 | 5.602 | 5.650 | 1428 | 1416 |
-| 32 | 22.104 | 22.094 | 1448 | 1448 |
+| 1 | 2.407 | 2.401 | 415 | 416 |
+| 8 | 5.600 | 5.646 | 1429 | 1417 |
+| 32 | 22.090 | 22.084 | 1449 | 1449 |
 
 At a million documents the scan is milliseconds long, so launch overhead is noise and graph
 replay buys nothing measurable; it matters on small corpora (see the end-to-end table). The
@@ -147,13 +147,13 @@ SciFact, 5 183 abstracts, float32, 100 candidates reranked, median over the 300 
 
 | Configuration | ms/query | queries/s |
 | --- | ---: | ---: |
-| engine rerank batch=1 graphs=off | 74.50 | 13.4 |
-| engine rerank batch=1 graphs=on | 74.51 | 13.4 |
-| engine rerank batch=8 graphs=on | 75.59 | 13.2 |
-| engine rerank batch=32 graphs=on | 75.73 | 13.2 |
-| engine retrieval-only | 0.727 | 1375 |
-| engine hybrid (BM25 + dense) | 75.86 | 13.2 |
-| python baseline (ST + CrossEncoder) | 148.74 | — |
+| engine rerank batch=1 graphs=off | 75.74 | 13.2 |
+| engine rerank batch=1 graphs=on | 75.86 | 13.2 |
+| engine rerank batch=8 graphs=on | 76.14 | 13.1 |
+| engine rerank batch=32 graphs=on | 76.70 | 13.0 |
+| engine retrieval-only | 0.725 | 1380 |
+| engine hybrid (BM25 + dense) | 76.76 | 13.0 |
+| python baseline (ST + CrossEncoder) | 149.70 | — |
 
 2.0× faster end to end than the Python baseline at batch 1 — and as predicted below, almost all
 of the remaining 74 ms is the cross-encoder scoring 100 passages.
@@ -193,8 +193,8 @@ All 300 BEIR SciFact test queries, top-100 candidates reranked by the cross-enco
 
 | Config | Storage | Rescore | Hybrid | VRAM MB | Recall@10 | nDCG@10 | GPU/CPU overlap | gpu ms |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| scifact.json | float32 | – | no | 8.0 | 0.7982 | 0.6807 | 0.9994 | 0.075 |
-| scifact_int8.json | int8 | – | no | 2.0 | 0.7982 | 0.6807 | 0.9933 | 0.061 |
+| scifact.json | float32 | – | no | 8.0 | 0.7982 | 0.6807 | 0.9994 | 0.076 |
+| scifact_int8.json | int8 | – | no | 2.0 | 0.7982 | 0.6807 | 0.9933 | 0.062 |
 | scifact_binary_rescore.json | binary | float32 | no | 8.2 | 0.7932 | 0.6787 | 0.9458 | 0.164 |
 | scifact_hybrid.json | float16 | – | yes | 10.7 | 0.7882 | 0.6778 | 0.9994 | 0.086 |
 
