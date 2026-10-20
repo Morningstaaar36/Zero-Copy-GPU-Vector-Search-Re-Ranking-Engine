@@ -194,6 +194,14 @@ serves one query, so you are purely bandwidth-bound and can never beat memory. S
 query vectors in shared memory and score all of them against each corpus row you load. Each
 loaded byte now does 8× the work. Re-measure.
 
+**5. Make it persistent.** Now run the benchmark on fp16 and int8 too. If they are no faster
+than fp32, your kernel is not bandwidth-bound any more — it is paying a fixed cost per block.
+With one block per document, every block re-stages the whole query tile: at 1M documents that
+is ~12 GB of staging to scan a 0.4 GB int8 corpus. Size the grid to the GPU's residency
+(`cudaOccupancyMaxActiveBlocksPerMultiprocessor × SM count`), give each *warp* a document,
+stride the warps over the corpus, and load rows in 128-bit vectors. Every precision should then
+land within a few percent of peak, and fp32 should tie `cublasSgemv`.
+
 This is the difference between a demo and an engineered kernel, and it is the thing to talk
 about when someone asks what you built.
 
