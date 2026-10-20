@@ -100,7 +100,7 @@ version of this kernel launched one block per document instead, and re-staged th
 tile in every block — at 1M documents, ~12 GB of shared-memory fill traffic to scan a 0.05–1.5
 GB corpus. It was correct, it passed every test, and it ran every storage precision at the same
 speed (7–8 ms), because the fixed per-block cost dwarfed the corpus bytes. The rewrite runs at
-88–94% of DRAM peak for all four precisions (`docs/BENCHMARKS.md`).
+87–94% of DRAM peak for all four precisions (`docs/BENCHMARKS.md`).
 
 Rows are read in 128-bit transactions — `float4`, 8 × `half` or 16 × `int8` per lane — whenever
 `dim` divides into 16-byte vectors and the store is 16-byte aligned; otherwise a scalar
