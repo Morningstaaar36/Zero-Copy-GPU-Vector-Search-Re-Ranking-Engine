@@ -216,6 +216,11 @@ def create_app(engine, llama=None) -> FastAPI:
             "verdict": verdict.label,
             "probabilities": verdict.probabilities,
             "explanation": verdict.explanation,
+            "quote_checks": [
+                {"quote": c.quote, "cited": c.cited, "found_in": c.found_in,
+                 "verified": c.verified}
+                for c in verdict.quote_checks
+            ],
             "evidence": _evidence(verdict.evidence),
             "timing_ms": verdict.timing_ms,
         }
