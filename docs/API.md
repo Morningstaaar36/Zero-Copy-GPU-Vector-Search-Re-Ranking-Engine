@@ -267,9 +267,10 @@ The `Engine` is a single object owned by Python; `~Engine()` is declared out-of-
 | `Llama.choice_logprobs(prompts, choices)` | `[n, len(choices)]` log-probabilities of each choice's first token, one forward pass, fp32 head |
 | `Llama.continuation_logprob(prompts, continuation)` | Mean per-token log-probability of a shared continuation, teacher-forced |
 | `factcheck.ClaimVerifier(engine, llama, evidence_k=3)` | `.verify(claim, explain=True, on_text=None) -> Verdict`; `.classify(claims, evidence_sets)` for batches |
-| `factcheck.Verdict` | `label`, `probabilities`, `confidence`, `evidence: list[Evidence]`, `explanation`, `timing_ms` |
+| `factcheck.Verdict` | `label`, `probabilities`, `confidence`, `evidence: list[Evidence]`, `explanation`, `quote_checks`, `quotes_verified`, `timing_ms` |
 | `factcheck.LlamaReranker(llama, mode="query_likelihood")` | `.score(query, passages)`, `.rerank(query, evidence)`; `mode="yes_no"` for pointwise judging |
 | `factcheck.GroundedAnswerer(engine, llama, k=5)` | `.answer(question, on_text=None) -> (Generation, evidence, timing)` |
+| `factcheck.check_quotes(explanation, evidence)` | Verifies each quoted passage is verbatim in the abstract it cites; returns `QuoteCheck(quote, cited, found_in)` with `.verified` |
 | `factcheck.fit_label_bias(logprobs, gold)` | Contextual-calibration offsets maximizing macro-F1; saved per model in `configs/calibration/` |
 
 Details and measured results: [LLAMA.md](LLAMA.md).
