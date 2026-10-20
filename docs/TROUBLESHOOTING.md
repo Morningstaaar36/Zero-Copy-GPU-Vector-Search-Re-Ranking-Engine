@@ -50,6 +50,38 @@ off by default and the macro compiles to nothing.
 `CMAKE_CUDA_ARCHITECTURES` defaults to `native`, which compiles for your GPU only. If it was
 overridden to a list, narrow it: `-DCMAKE_CUDA_ARCHITECTURES=86` for one target.
 
+## Llama layer
+
+**`GatedRepoError` / 401 / 403 downloading `meta-llama/...`.**
+Those repositories need you to accept Meta's license on the Hugging Face model page and be
+logged in (`hf auth login`). You do not have to: `Llama()` and `download_llama.sh` fall back to
+the `unsloth/*` mirror of the same weights and say so on stderr.
+
+**`CUDA out of memory` loading Llama.**
+The 3B model needs ~6.8 GB for PyTorch on top of the index and the ONNX sessions (~8.5 GB in
+total). On an 8 GB card use `models/llama/Llama-3.2-1B-Instruct` (~3.4 GB), and close other GPU
+programs. Do not load two Llama models at once.
+
+**Downloads from the Hub crawl at a few KB/s.**
+`hf download` uses a single stream per file and some networks throttle it. Fetching the
+`.safetensors` in ranged chunks with several parallel `curl` connections is many times faster; the
+files only need to end up in `models/llama/<name>/`.
+
+**The first `verify` is slow, later ones are fast.**
+The first call pays PyTorch/CUDA kernel warmup. `fact_check.py` runs one throwaway claim before
+printing timings; do the same in your own code before measuring.
+
+**`✗ NOT VERIFIED` in the quote check.**
+Expected sometimes — it is the checker doing its job. A quotation was not found word for word in
+any retrieved abstract (invented, or paraphrase in quote marks), or it is real text credited to a
+different abstract than the `[n]` next to it. About one quote in eight fails for the 3B model
+([LLAMA.md](LLAMA.md#the-quote-checker)). Read the evidence printed above the verdict.
+
+**Verdict is `NOT ENOUGH INFO` for a claim you know is true.**
+The corpus is 5 183 SciFact abstracts. If none of them addresses the claim, "not enough
+information" is the correct answer — add documents with `POST /documents` or build your own
+corpus with `scripts/generate_artifacts.sh`.
+
 ## Runtime — loading
 
 **`libonnxruntime.so: cannot open shared object file`.**
