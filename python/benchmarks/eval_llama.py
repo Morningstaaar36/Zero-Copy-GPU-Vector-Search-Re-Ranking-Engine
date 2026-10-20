@@ -183,6 +183,42 @@ def run_rerank(llama: Llama, engine, queries, qrels, args) -> dict:
     }
 
 
+def run_grounding(llama: Llama, engine, claims, args) -> dict:
+    """How trustworthy are the generated explanations? Every quoted passage is machine-checked
+    against the abstract it cites (``factcheck.check_quotes``)."""
+    verifier = ClaimVerifier(engine, llama, evidence_k=args.evidence_k)
+    total_quotes = verified = not_found = misattributed = 0
+    with_quotes = fully_verified = 0
+    failures = []
+    subset = claims[: args.grounding_claims]
+    for claim in subset:
+        verdict = verifier.verify(claim.text, explain=True)
+        checks = verdict.quote_checks
+        if checks:
+            with_quotes += 1
+        fully_verified += verdict.quotes_verified
+        for check in checks:
+            total_quotes += 1
+            verified += check.verified
+            if not check.found_in:
+                not_found += 1
+            elif not check.verified:
+                misattributed += 1
+            if not check.verified and len(failures) < 8:
+                failures.append({"claim": claim.text, "quote": check.quote,
+                                 "cited": check.cited, "found_in": check.found_in})
+    return {
+        "claims": len(subset),
+        "explanations_with_quotes": with_quotes,
+        "quotes": total_quotes,
+        "quotes_verified": verified,
+        "quotes_not_found": not_found,
+        "quotes_misattributed": misattributed,
+        "explanations_fully_verified": fully_verified,
+        "examples_of_failures": failures,
+    }
+
+
 def run_latency(llama: Llama, engine, claims, args) -> dict:
     verifier = ClaimVerifier(engine, llama, evidence_k=args.evidence_k)
     for claim in claims[:3]:
@@ -203,7 +239,7 @@ def main() -> None:
     parser.add_argument("--llama", nargs="+", default=["meta-llama/Llama-3.2-3B-Instruct"],
                         help="one or more Llama model ids or local directories")
     parser.add_argument("--tasks", nargs="+", default=["verify", "rerank", "latency"],
-                        choices=["verify", "rerank", "latency"])
+                        choices=["verify", "rerank", "latency", "grounding"])
     parser.add_argument("--max-claims", type=int, default=300)
     parser.add_argument("--evidence-k", type=int, default=3)
     parser.add_argument("--verify-batch", type=int, default=4)
@@ -215,6 +251,7 @@ def main() -> None:
     parser.add_argument("--cascade-depth", type=int, default=10)
     parser.add_argument("--rerank-batch", type=int, default=16)
     parser.add_argument("--latency-claims", type=int, default=20)
+    parser.add_argument("--grounding-claims", type=int, default=100)
     parser.add_argument("--out", default="docs/results")
     args = parser.parse_args()
 
@@ -270,6 +307,14 @@ def main() -> None:
                       f"Recall@10={result['rerank']['recall@10'][name]:.4f}")
             for mode, rate in result["rerank"]["pairs_per_s"].items():
                 print(f"rerank throughput [{mode}]: {rate:.0f} pairs/s")
+
+        if "grounding" in args.tasks:
+            result["grounding"] = run_grounding(llama, engine, claims, args)
+            g = result["grounding"]
+            print(f"grounding: {g['quotes_verified']}/{g['quotes']} quotes verified "
+                  f"({g['quotes_not_found']} not found verbatim, {g['quotes_misattributed']} "
+                  f"misattributed); {g['explanations_fully_verified']}/{g['claims']} "
+                  f"explanations fully verified, {g['explanations_with_quotes']} contain a quote")
 
         if "latency" in args.tasks:
             result["latency_ms"] = run_latency(llama, engine, claims, args)
