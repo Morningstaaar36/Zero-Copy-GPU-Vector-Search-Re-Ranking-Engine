@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 372" width="900" height="372" role="img" aria-labelledby="t d" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<title id="t">Why you can trust the numbers</title>
+<desc id="d">Six rigor practices: CPU-reference tests for every kernel, a held-out test set, bootstrap confidence intervals, published negative results, machine-checked quotes and one-command reproduction.</desc>
+<style>
+.bg{fill:#fcfcfb}.panel{fill:#f4f3f0;stroke:#e4e3df}.line{stroke:#c9c8c2;fill:none}
+.t1{fill:#0b0b0b}.t2{fill:#52514e}.t3{fill:#6b6a65}
+.blue{fill:#2a78d6}.orange{fill:#eb6834}.gray{fill:#8a8982}.good{fill:#0ca30c}
+.arrow{stroke:#52514e;fill:none}
+@media (prefers-color-scheme:dark){
+.bg{fill:#1a1a19}.panel{fill:#232321;stroke:#34342f}.line{stroke:#4a4a45}
+.t1{fill:#f0efec}.t2{fill:#c3c2b7}.t3{fill:#a09f95}
+.blue{fill:#3987e5}.orange{fill:#d95926}.gray{fill:#6b6a65}.good{fill:#0ca30c}
+.arrow{stroke:#c3c2b7}}
+</style>
+<rect class="bg" width="900" height="372" rx="10"/>
+<text class="t1" x="30" y="40" font-size="22" font-weight="700" text-anchor="start" >Why you can trust the numbers</text>
+<text class="t2" x="30" y="64" font-size="13" font-weight="400" text-anchor="start" >Every claim in this README is backed by a test, a held-out split, or a script you can run.</text>
+<rect class="panel" x="24" y="86" width="276" height="124" rx="10"/>
+<circle class="good" cx="52" cy="116" r="12"/>
+<path d="M46,116 l5,5 l8,-10" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t1" x="74" y="121" font-size="14" font-weight="700" text-anchor="start" >Kernels tested against the CPU</text>
+<text class="t2" x="42" y="156" font-size="12.3" font-weight="400" text-anchor="start" >9 CUDA test suites; one sweeps 44</text>
+<text class="t2" x="42" y="174" font-size="12.3" font-weight="400" text-anchor="start" >dtype × dim × metric × mask cases</text>
+<rect class="panel" x="312" y="86" width="276" height="124" rx="10"/>
+<circle class="good" cx="340" cy="116" r="12"/>
+<path d="M334,116 l5,5 l8,-10" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t1" x="362" y="121" font-size="14" font-weight="700" text-anchor="start" >No peeking at the test set</text>
+<text class="t2" x="330" y="156" font-size="12.3" font-weight="400" text-anchor="start" >Calibration fitted on 809 train claims,</text>
+<text class="t2" x="330" y="174" font-size="12.3" font-weight="400" text-anchor="start" >scored on 300 held-out claims</text>
+<rect class="panel" x="600" y="86" width="276" height="124" rx="10"/>
+<circle class="good" cx="628" cy="116" r="12"/>
+<path d="M622,116 l5,5 l8,-10" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t1" x="650" y="121" font-size="14" font-weight="700" text-anchor="start" >Error bars, not vibes</text>
+<text class="t2" x="618" y="156" font-size="12.3" font-weight="400" text-anchor="start" >Paired bootstrap, 10,000 resamples,</text>
+<text class="t2" x="618" y="174" font-size="12.3" font-weight="400" text-anchor="start" >on every reranking comparison</text>
+<rect class="panel" x="24" y="222" width="276" height="124" rx="10"/>
+<circle class="good" cx="52" cy="252" r="12"/>
+<path d="M46,252 l5,5 l8,-10" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t1" x="74" y="257" font-size="14" font-weight="700" text-anchor="start" >Negative results published</text>
+<text class="t2" x="42" y="292" font-size="12.3" font-weight="400" text-anchor="start" >Hybrid BM25 and Llama-only reranking</text>
+<text class="t2" x="42" y="310" font-size="12.3" font-weight="400" text-anchor="start" >lost to the baseline — both reported</text>
+<rect class="panel" x="312" y="222" width="276" height="124" rx="10"/>
+<circle class="good" cx="340" cy="252" r="12"/>
+<path d="M334,252 l5,5 l8,-10" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t1" x="362" y="257" font-size="14" font-weight="700" text-anchor="start" >Quotes are machine-checked</text>
+<text class="t2" x="330" y="292" font-size="12.3" font-weight="400" text-anchor="start" >Every quotation must appear verbatim</text>
+<text class="t2" x="330" y="310" font-size="12.3" font-weight="400" text-anchor="start" >in the abstract it cites: 121 of 137</text>
+<text class="t2" x="330" y="328" font-size="12.3" font-weight="400" text-anchor="start" >passed in a 100-claim audit</text>
+<rect class="panel" x="600" y="222" width="276" height="124" rx="10"/>
+<circle class="good" cx="628" cy="252" r="12"/>
+<path d="M622,252 l5,5 l8,-10" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t1" x="650" y="257" font-size="14" font-weight="700" text-anchor="start" >One command reproduces it</text>
+<text class="t2" x="618" y="292" font-size="12.3" font-weight="400" text-anchor="start" >scripts/verify.sh, bench_all.sh,</text>
+<text class="t2" x="618" y="310" font-size="12.3" font-weight="400" text-anchor="start" >eval_llama.py · median of 50 warm runs</text>
+</svg>
