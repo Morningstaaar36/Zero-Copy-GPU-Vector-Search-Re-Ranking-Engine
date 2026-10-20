@@ -40,6 +40,7 @@ NumPy.
 | Layer | Verified by |
 | --- | --- |
 | Wire formats, all four storage dtypes | `tests/python/test_formats.py` (NumPy only, no GPU) |
+| Llama layer logic: calibration fit, macro-F1, RRF, SciFact labels | `tests/python/test_factcheck.py` (no GPU, no weights) |
 | float32 scan | `zcgvs_test_similarity` vs a CPU dot-product loop |
 | L2 metric and the device allow-mask | `zcgvs_test_metrics_filter` vs a CPU reference |
 | int8 and binary scans | `zcgvs_test_quantized` vs CPU references reproducing the exact quantization and bit-packing |
@@ -59,6 +60,7 @@ NumPy.
 
 ```bash
 python tests/python/test_formats.py            # seconds, needs only NumPy
+python tests/python/test_factcheck.py          # seconds, no GPU or model weights
 bash scripts/build.sh
 ./build/apps/zcgvs_bench_kernels --docs 100000 # synthetic, no artifacts needed
 ctest --test-dir build --output-on-failure
