@@ -22,6 +22,7 @@ The engine owns retrieval; this module only sees the ``k`` hits that cross to th
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,11 +63,70 @@ class Verdict:
     probabilities: dict[str, float]
     evidence: list[Evidence]
     explanation: str = ""
+    quote_checks: list["QuoteCheck"] = field(default_factory=list)
     timing_ms: dict[str, float] = field(default_factory=dict)
 
     @property
     def confidence(self) -> float:
         return self.probabilities[self.label]
+
+    @property
+    def quotes_verified(self) -> bool:
+        """True when the explanation quotes at least one passage and every one checks out."""
+        return bool(self.quote_checks) and all(check.verified for check in self.quote_checks)
+
+
+@dataclass
+class QuoteCheck:
+    quote: str
+    cited: int | None          # the [n] written next to the quote, if any
+    found_in: list[int]        # ranks of every evidence abstract containing the quote verbatim
+
+    @property
+    def verified(self) -> bool:
+        """Found word for word in the evidence — and in the abstract it was attributed to."""
+        if not self.found_in:
+            return False
+        return self.cited is None or self.cited in self.found_in
+
+
+_QUOTE = re.compile(r'["“]([^"“”]{20,}?)["”]\s*\(?\s*(?:\[(\d+)\])?')
+
+
+def _normalize(text: str) -> str:
+    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+    return re.sub(r"\s+", " ", text).strip().strip(".,;:").lower()
+
+
+def check_quotes(explanation: str, evidence: list[Evidence]) -> list[QuoteCheck]:
+    """Machine-checks every quoted passage in an explanation against the retrieved abstracts.
+
+    A quote is *verified* if its words appear verbatim (case, spacing and edge punctuation
+    aside) in an abstract — and, when the model wrote a citation like ``[2]`` after it, in that
+    very abstract. A quote containing an ellipsis is checked fragment by fragment.
+
+    This catches fabricated and misattributed quotations. It does not check paraphrases, and a
+    verbatim quote can still be used to support the wrong conclusion; read the evidence.
+    """
+    corpus = {item.rank: _normalize(item.text) for item in evidence}
+    checks: list[QuoteCheck] = []
+    for match in _QUOTE.finditer(explanation):
+        body = match.group(1)
+        cited = int(match.group(2)) if match.group(2) else None
+        # Models sometimes put the label inside the quote marks: "[2] Title of the abstract".
+        label = re.match(r"\s*\[(\d+)\]\s*", body)
+        if label:
+            cited = cited if cited is not None else int(label.group(1))
+            body = body[label.end():]
+        fragments = [f for f in re.split(r"\.\.\.|…", body) if len(f.split()) >= 3]
+        if not fragments:
+            continue
+        found_in = [
+            rank for rank, text in corpus.items()
+            if all(_normalize(fragment) in text for fragment in fragments)
+        ]
+        checks.append(QuoteCheck(body.strip(), cited, found_in))
+    return checks
 
 
 def truncate_words(text: str, max_words: int) -> str:
@@ -299,12 +359,16 @@ class ClaimVerifier:
         messages.append({
             "role": "user",
             "content": (
-                "In two or three sentences, explain that verdict. Cite the abstracts you "
-                "rely on as [1], [2] or [3], and quote the key finding."
+                "In two or three sentences, explain that verdict. Support it with one or two "
+                "exact quotations copied word for word from the abstracts, each in double "
+                "quotes and followed by the number of the abstract it comes from, like "
+                '"..." [2]. Only cite an abstract that actually contains the quoted words, '
+                "and never cite page numbers."
             ),
         })
         generation = self.llama.stream(messages, max_new_tokens=max_new_tokens, on_text=on_text)
         verdict.explanation = generation.text
+        verdict.quote_checks = check_quotes(generation.text, verdict.evidence)
         verdict.timing_ms["llama_ttft"] = generation.ttft_ms
         verdict.timing_ms["llama_explain"] = generation.total_ms
         verdict.timing_ms["llama_tokens_per_s"] = generation.tokens_per_s
