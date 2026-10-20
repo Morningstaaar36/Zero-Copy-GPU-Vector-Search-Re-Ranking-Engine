@@ -1,0 +1,11 @@
+{
+    "embeddings_path": "data/scifact.int8.bin",
+    "metadata_path": "data/scifact.meta",
+    "vocab_path": "models/vocab.txt",
+    "encoder_model_path": "models/encoder/model.onnx",
+    "reranker_model_path": "models/reranker/model.onnx",
+    "device_id": 0,
+    "metric": "cosine",
+    "default_top_k": 10,
+    "default_candidates": 100
+}
