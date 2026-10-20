@@ -3,8 +3,8 @@ cmake-build-*/
 install/
 third_party/
 
-data/
-models/
+/data/
+/models/
 *.onnx
 *.bin
 *.meta
