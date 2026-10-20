@@ -257,3 +257,20 @@ Every device allocation is RAII: `DeviceBuffer<T>`, `PinnedBuffer<T>`, `CudaStre
 searcher's `cudaGraphExec_t`. Nothing above `core` calls `cudaMalloc` or `cudaFree` directly.
 The `Engine` is a single object owned by Python; `~Engine()` is declared out-of-line so the
 `unique_ptr`s to forward-declared types see complete types in the translation unit.
+
+## Llama layer (Python)
+
+| Object | Purpose |
+| --- | --- |
+| `zcgvs_tools.llama.Llama(model_id, device="cuda:0")` | Loads a Llama 3.x Instruct checkpoint in bf16 (Hub id or local dir; gated repos fall back to an identical mirror) |
+| `Llama.stream(messages, max_new_tokens, on_text)` | Chat generation; returns `Generation(text, prompt_tokens, new_tokens, ttft_ms, total_ms, tokens_per_s)` |
+| `Llama.choice_logprobs(prompts, choices)` | `[n, len(choices)]` log-probabilities of each choice's first token, one forward pass, fp32 head |
+| `Llama.continuation_logprob(prompts, continuation)` | Mean per-token log-probability of a shared continuation, teacher-forced |
+| `factcheck.ClaimVerifier(engine, llama, evidence_k=3)` | `.verify(claim, explain=True, on_text=None) -> Verdict`; `.classify(claims, evidence_sets)` for batches |
+| `factcheck.Verdict` | `label`, `probabilities`, `confidence`, `evidence: list[Evidence]`, `explanation`, `timing_ms` |
+| `factcheck.LlamaReranker(llama, mode="query_likelihood")` | `.score(query, passages)`, `.rerank(query, evidence)`; `mode="yes_no"` for pointwise judging |
+| `factcheck.GroundedAnswerer(engine, llama, k=5)` | `.answer(question, on_text=None) -> (Generation, evidence, timing)` |
+| `factcheck.fit_label_bias(logprobs, gold)` | Contextual-calibration offsets maximizing macro-F1; saved per model in `configs/calibration/` |
+
+Details and measured results: [LLAMA.md](LLAMA.md).
+
