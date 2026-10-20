@@ -15,9 +15,17 @@ cd /home/lucifer/BUET/CUDA/Zero-Copy-GPU-Vector-Search-Re-Ranking-Engine
 
 ```bash
 bash scripts/run_demo.sh     # one query through all four variants + the C++ CLI
-bash scripts/verify.sh       # all checks: formats, 8 CUDA kernel tests, engine, variants
+bash scripts/verify.sh       # all checks: formats, 9 CUDA kernel tests, engine, variants
 bash scripts/bench_all.sh    # kernel roofline + end-to-end latency + retrieval quality
 bash scripts/build.sh        # recompile after editing C++/CUDA
+bash scripts/run_factcheck.sh  # Llama 3.2 fact-check of one claim (CLAIM="..." to change it)
+```
+
+Llama weights live in `models/llama/` (fetched by `scripts/download_llama.sh`). The Llama
+evaluation that produced `docs/results/*.json` and `configs/calibration/*.json`:
+
+```bash
+python python/benchmarks/eval_llama.py --llama models/llama/Llama-3.2-3B-Instruct models/llama/Llama-3.2-1B-Instruct
 ```
 
 Change the query:
