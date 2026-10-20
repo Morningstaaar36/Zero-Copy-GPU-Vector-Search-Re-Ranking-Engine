@@ -58,6 +58,7 @@ echo "=============================================================="
 
 # ---- tier 1: wire formats (no GPU, no build) ----------------------------------------
 run_step "formats round-trip" python "${ROOT}/tests/python/test_formats.py"
+run_step "llama logic (calibration, fusion)" python "${ROOT}/tests/python/test_factcheck.py"
 
 # ---- tier 2: CUDA kernels ------------------------------------------------------------
 if [ "${SKIP_KERNELS:-0}" = "1" ]; then
