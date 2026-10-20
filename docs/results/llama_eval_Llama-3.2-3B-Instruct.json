@@ -3,7 +3,7 @@
   "weights": "models/llama/Llama-3.2-3B-Instruct",
   "parameters": 3212749824,
   "weight_mb": 6425.499648,
-  "load_s": 4.278650968000875,
+  "load_s": 8.84099593299834,
   "engine": {
     "config": "scifact.json",
     "corpus_size": 5183,
@@ -2669,16 +2669,81 @@
     }
   },
   "latency_ms": {
-    "embed": 1.005085,
-    "gpu_search": 0.07614399865269661,
-    "copy": 0.07480999999999999,
-    "cross_encoder": 76.497965,
-    "retrieval_total": 77.678935,
-    "llama_verdict": 150.04111899907002,
-    "llama_ttft": 158.0767105006089,
-    "llama_explain": 2360.701447498286,
-    "llama_tokens_per_s": 49.90869344948265,
-    "end_to_end": 2558.790063496417
+    "embed": 1.175128,
+    "gpu_search": 0.07672000303864479,
+    "copy": 0.07642499999999999,
+    "cross_encoder": 77.018818,
+    "retrieval_total": 81.673374,
+    "llama_verdict": 153.29303949874884,
+    "llama_ttft": 159.2499369980942,
+    "llama_explain": 2519.506150500092,
+    "llama_tokens_per_s": 49.330134210719194,
+    "end_to_end": 2785.5670114986424
   },
-  "peak_vram_mb": 7673.535488
+  "peak_vram_mb": 6753.757696,
+  "grounding": {
+    "claims": 100,
+    "explanations_with_quotes": 86,
+    "quotes": 137,
+    "quotes_verified": 121,
+    "quotes_not_found": 13,
+    "quotes_misattributed": 3,
+    "explanations_fully_verified": 70,
+    "examples_of_failures": [
+      {
+        "claim": "1,000 genomes project enables mapping of genetic sequence variation consisting of rare variants with larger penetrance effects than common variants.",
+        "quote": "rare causal mutations responsible for both hearing loss and sickle cell anemia create genome-wide significant synthetic associations",
+        "cited": 2,
+        "found_in": [
+          1
+        ]
+      },
+      {
+        "claim": "Antibiotic induced alterations in the gut microbiome reduce resistance against Clostridium difficile",
+        "quote": "Clostridium scindens, upon administration, enhances resistance to infection in a secondary bile acid dependent fashion",
+        "cited": null,
+        "found_in": []
+      },
+      {
+        "claim": "Antiretroviral therapy reduces rates of tuberculosis across a broad range of CD4 strata.",
+        "quote": "antiretroviral therapy is strongly associated with a reduction in the incidence of tuberculosis in all baseline CD4 count categories",
+        "cited": 1,
+        "found_in": [
+          2
+        ]
+      },
+      {
+        "claim": "Assembly of invadopodia is triggered by focal generation of phosphatidylinositol-3,4-biphosphate and the activation of the nonreceptor tyrosine kinase Src.",
+        "quote": "assembly of invadopodia is triggered by focal generation of phosphatidylinositol-3,4-biphosphate and the activation of the nonreceptor tyrosine kinase Src.",
+        "cited": 2,
+        "found_in": []
+      },
+      {
+        "claim": "Autologous transplantation of mesenchymal stem cells causes a higher rate of opportunistic infections than induction therapy with anti-interleukin-2 receptor antibodies.",
+        "quote": "...the 1-year incidence of SAEs...",
+        "cited": 1,
+        "found_in": [
+          2
+        ]
+      },
+      {
+        "claim": "CR is associated with higher methylation age.",
+        "quote": "attenuates age-related methylation drift",
+        "cited": 2,
+        "found_in": []
+      },
+      {
+        "claim": "CX3CR1 on the Th2 cells impairs T cell survival",
+        "quote": "promoting T(H)2 survival in the inflamed lungs",
+        "cited": 2,
+        "found_in": []
+      },
+      {
+        "claim": "Cataract and trachoma are the primary cause of blindness in Southern Sudan.",
+        "quote": "backlog of 178,250 persons requiring surgery",
+        "cited": 3,
+        "found_in": []
+      }
+    ]
+  }
 }
