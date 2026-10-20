@@ -72,7 +72,7 @@ formats: PASS
 ctest --test-dir build --output-on-failure
 ```
 
-Eight harnesses, each comparing a kernel against a CPU reference:
+Nine harnesses, each comparing a kernel against a CPU reference:
 
 | Test | Compares |
 | --- | --- |
@@ -84,6 +84,7 @@ Eight harnesses, each comparing a kernel against a CPU reference:
 | `batched` | 11 queries (deliberately not a multiple of the 8-wide query tile) vs per-query references, scores *and* rankings |
 | `pipeline` | Lossless coarse pass + rescore reproduces the exact CPU top-K; binary coarse pass stays well-formed; CUDA-graph replay is bit-identical to direct launches |
 | `lexical` | BM25 scatter-add, the max reduction, and score fusion vs CPU references |
+| `scan_paths` | 44 cases: every storage type × dims 384/768/100/97 (vectorized and scalar-fallback paths) × dot/L2 × with and without a mask, 11 queries across two tiles, 20 000 docs so every warp strides the corpus |
 
 Expected:
 
@@ -96,8 +97,9 @@ Test #5: topk_large ..... Passed
 Test #6: batched ........ Passed
 Test #7: pipeline ....... Passed
 Test #8: lexical ........ Passed
+Test #9: scan_paths ..... Passed
 
-100% tests passed, 0 tests failed out of 8
+100% tests passed, 0 tests failed out of 9
 ```
 
 Run one directly for its diagnostic output:
