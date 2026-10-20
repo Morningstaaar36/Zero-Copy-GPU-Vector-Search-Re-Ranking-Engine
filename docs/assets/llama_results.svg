@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" width="760" height="330" role="img" aria-labelledby="t d" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<title id="t">Llama 3.2 claim verification, raw versus calibrated</title>
+<desc id="d">Macro-F1 on 300 held-out SciFact claims. Llama 3.2 1B: 0.262 raw, 0.385 calibrated. Llama 3.2 3B: 0.431 raw, 0.514 calibrated. Reference lines: always answering SUPPORT scores 0.195; the 3B model given the gold evidence abstracts scores 0.613.</desc>
+<style>
+.bg{fill:#fcfcfb}.panel{fill:#f4f3f0;stroke:#e4e3df}.line{stroke:#c9c8c2;fill:none}
+.t1{fill:#0b0b0b}.t2{fill:#52514e}.t3{fill:#6b6a65}
+.blue{fill:#2a78d6}.orange{fill:#eb6834}.gray{fill:#8a8982}.good{fill:#0ca30c}
+.arrow{stroke:#52514e;fill:none}
+@media (prefers-color-scheme:dark){
+.bg{fill:#1a1a19}.panel{fill:#232321;stroke:#34342f}.line{stroke:#4a4a45}
+.t1{fill:#f0efec}.t2{fill:#c3c2b7}.t3{fill:#a09f95}
+.blue{fill:#3987e5}.orange{fill:#d95926}.gray{fill:#6b6a65}.good{fill:#0ca30c}
+.arrow{stroke:#c3c2b7}}
+</style>
+<rect class="bg" width="760" height="330" rx="10"/>
+<text class="t1" x="24" y="36" font-size="18" font-weight="700" text-anchor="start" >Calibrating Llama&#x27;s label priors lifts macro-F1 by 0.08–0.12</text>
+<text class="t2" x="24" y="58" font-size="12.5" font-weight="400" text-anchor="start" >Claim verification (support / contradict / not enough info) on 300 held-out SciFact claims</text>
+<rect class="orange" x="24" y="72" width="12" height="12" rx="2"/>
+<text class="t2" x="42" y="83" font-size="12" font-weight="400" text-anchor="start" >raw model</text>
+<rect class="blue" x="132" y="72" width="12" height="12" rx="2"/>
+<text class="t2" x="150" y="83" font-size="12" font-weight="400" text-anchor="start" >after calibration (offsets fitted on separate training claims)</text>
+<line class="line" x1="150.0" y1="110" x2="150.0" y2="288" stroke-width="1"/>
+<text class="t3" x="150.0" y="306" font-size="11" font-weight="400" text-anchor="middle" >0.0</text>
+<line class="line" x1="307.1428571428571" y1="110" x2="307.1428571428571" y2="288" stroke-width="1"/>
+<text class="t3" x="307.1428571428571" y="306" font-size="11" font-weight="400" text-anchor="middle" >0.2</text>
+<line class="line" x1="464.2857142857143" y1="110" x2="464.2857142857143" y2="288" stroke-width="1"/>
+<text class="t3" x="464.2857142857143" y="306" font-size="11" font-weight="400" text-anchor="middle" >0.4</text>
+<line class="line" x1="621.4285714285714" y1="110" x2="621.4285714285714" y2="288" stroke-width="1"/>
+<text class="t3" x="621.4285714285714" y="306" font-size="11" font-weight="400" text-anchor="middle" >0.6</text>
+<text class="t1" x="136" y="146" font-size="13" font-weight="600" text-anchor="end" >Llama 3.2 1B</text>
+<path class="orange" d="M150,112 h200.8 a5,5 0 0 1 5,5 v16 a5,5 0 0 1 -5,5 h-200.8 z"/>
+<text class="t1" x="363.8446712018141" y="131" font-size="12.5" font-weight="700" text-anchor="start" >0.262</text>
+<path class="blue" d="M150,142 h297.3 a5,5 0 0 1 5,5 v16 a5,5 0 0 1 -5,5 h-297.3 z"/>
+<text class="t1" x="460.3132135676166" y="161" font-size="12.5" font-weight="700" text-anchor="start" >0.385</text>
+<text class="t1" x="136" y="228" font-size="13" font-weight="600" text-anchor="end" >Llama 3.2 3B</text>
+<path class="orange" d="M150,194 h333.4 a5,5 0 0 1 5,5 v16 a5,5 0 0 1 -5,5 h-333.4 z"/>
+<text class="t1" x="496.4330781492925" y="213" font-size="12.5" font-weight="700" text-anchor="start" >0.431</text>
+<path class="blue" d="M150,224 h398.8 a5,5 0 0 1 5,5 v16 a5,5 0 0 1 -5,5 h-398.8 z"/>
+<text class="t1" x="561.7807584082385" y="243" font-size="12.5" font-weight="700" text-anchor="start" >0.514</text>
+<line class="arrow" x1="303.1895777178796" y1="110" x2="303.1895777178796" y2="288" stroke-width="1.5" stroke-dasharray="5 4"/>
+<line class="arrow" x1="631.6180235535076" y1="110" x2="631.6180235535076" y2="288" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text class="t2" x="309.1895777178796" y="100" font-size="11.5" font-weight="400" text-anchor="start" >always SUPPORT: 0.195</text>
+<text class="t2" x="625.6180235535076" y="100" font-size="11.5" font-weight="400" text-anchor="end" >3B + gold abstracts: 0.613</text>
+</svg>
