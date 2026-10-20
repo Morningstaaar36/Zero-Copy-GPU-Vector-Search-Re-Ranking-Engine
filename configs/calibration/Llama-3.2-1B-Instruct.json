@@ -1,0 +1,14 @@
+{
+  "model": "Llama-3.2-1B-Instruct",
+  "method": "contextual calibration: additive label log-prob offsets, grid-searched for macro-F1",
+  "fitted_on": "SciFact train, 809 claims, open retrieval top-3 evidence",
+  "train_macro_f1": {
+    "raw": 0.27925096710143443,
+    "calibrated": 0.3871196490924323
+  },
+  "bias": {
+    "SUPPORT": 0.0,
+    "CONTRADICT": 1.6999999999999655,
+    "NOT ENOUGH INFO": 0.2999999999999705
+  }
+}
