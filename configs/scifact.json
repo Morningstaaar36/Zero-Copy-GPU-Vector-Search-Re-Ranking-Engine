@@ -1,0 +1,13 @@
+{
+    "embeddings_path": "data/scifact.bin",
+    "metadata_path": "data/scifact.meta",
+    "vocab_path": "models/vocab.txt",
+    "encoder_model_path": "models/encoder/model.onnx",
+    "reranker_model_path": "models/reranker/model.onnx",
+    "device_id": 0,
+    "metric": "cosine",
+    "similarity_backend": "custom",
+    "default_top_k": 10,
+    "default_candidates": 100,
+    "use_cuda_graphs": false
+}
