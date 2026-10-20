@@ -1,7 +1,8 @@
 # Features
 
 Every capability here is built on the same hand-written kernels — there is no third-party
-index anywhere in the stack, and nothing is trained. Each feature is a composable addition
+index anywhere in the stack, and nothing is trained. The Llama reasoning layer on top is
+documented separately in [LLAMA.md](LLAMA.md). Each feature is a composable addition
 that can be turned on from a config file or a per-request option.
 
 | Feature | Where | One-liner |
@@ -19,9 +20,12 @@ that can be turned on from a config file or a per-request option.
 | [Stage timing](#stage-timing-and-profiling) | CUDA events, `SearchTiming` | Per-stage latency through the API |
 | [NVTX ranges](#stage-timing-and-profiling) | `core/nvtx.hpp` | Nsight Systems annotations behind a build flag |
 | [Retrieval-only](#retrieval-only-queries) | `Engine::retrieve` | The search stage without the reranker |
-| [HTTP service](#http-service) | `zcgvs_tools.service` | FastAPI: search, batch, retrieve, documents, stats |
+| [HTTP service](#http-service) | `zcgvs_tools.service` | FastAPI: search, batch, retrieve, documents, stats, verify, ask |
 | [Engine statistics](#engine-statistics) | `Engine::stats` | What is resident in VRAM and which stages are wired up |
 | [Kernel roofline bench](#kernel-roofline-benchmark) | `apps/bench_kernels.cu` | GB/s vs peak on synthetic data, no artifacts needed |
+| [Llama claim verification](LLAMA.md#job-1--the-verdict-is-a-classifier-not-a-parser) | `factcheck.ClaimVerifier` | Calibrated SUPPORT / CONTRADICT / NEI in one forward pass, plus a streamed cited explanation |
+| [Llama reranking](LLAMA.md#job-3--llama-as-a-zero-shot-reranker) | `factcheck.LlamaReranker` | Zero-shot query likelihood (UPR) or yes/no, fusable with the cross-encoder |
+| [Grounded Q&A](LLAMA.md#job-4--grounded-question-answering) | `factcheck.GroundedAnswerer` | Answers only from retrieved abstracts, with citations |
 
 ---
 
@@ -106,16 +110,22 @@ rescored top-K matches the CPU float32 ranking exactly.
 
 A single-query brute-force scan reads the whole corpus and does one multiply-add per element
 loaded — arithmetic intensity of about 1 FLOP per 4 bytes, hopelessly bandwidth-bound. Batching
-fixes that: each block stages up to `kQueryTile = 8` query vectors in shared memory and reuses
-every loaded corpus element across all of them.
+fixes that: each resident block stages up to `kQueryTile = 8` query vectors in shared memory
+once, and its warps reuse every loaded corpus element across all of them while striding over
+the corpus.
 
 ```cpp
-for (int t = threadIdx.x; t < dim; t += blockDim.x) {
-    const float value = decodeStorage(row[t], scale);   // one global load
-    #pragma unroll
-    for (int q = 0; q < kQueryTile; ++q) {              // eight uses
-        if (q < tile) accumulateMetric(metric, shared_queries[q * dim + t], value, partial[q]);
+// one warp per document, persistent over the corpus
+for (int doc = blockIdx.x * warps + warp; doc < doc_count; doc += gridDim.x * warps) {
+    for (int base = lane * kVec; base < dim; base += 32 * kVec) {
+        float values[kVec];
+        loadRow<Storage, kVec>(row + base, scale, values);   // one 128-bit global load
+        #pragma unroll
+        for (int q = 0; q < kQueryTile; ++q) {               // eight uses of each element
+            if (q < tile) { /* float4 shared reads of query q, accumulate into partial[q] */ }
+        }
     }
+    // butterfly-reduce partial[q] across the warp; lane q stores query q's score
 }
 ```
 
@@ -352,6 +362,8 @@ PYTHONPATH=build/bindings:python python -m zcgvs_tools.service --config configs/
 | `POST /search/batch` | Many queries in a single device pass |
 | `POST /retrieve` | Search stage only |
 | `POST /documents` | Append to the live VRAM index |
+| `POST /verify` | Fact-check a claim with Llama: verdict, probabilities, cited explanation (`--llama`) |
+| `POST /ask` | Grounded question answering with Llama, cited to retrieved sources (`--llama`) |
 
 Every knob — metric, allow-list, hybrid, dense weight, rescore width, backend, CUDA graphs —
 is settable per request.
