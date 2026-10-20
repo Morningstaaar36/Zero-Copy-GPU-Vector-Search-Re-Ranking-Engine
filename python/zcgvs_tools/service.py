@@ -7,9 +7,12 @@ Endpoints:
   POST /search/batch    many queries in a single device pass
   POST /retrieve        search stage only, no cross-encoder
   POST /documents       add documents to the live VRAM index
+  POST /verify          fact-check a claim: retrieval + Llama verdict + cited explanation
+  POST /ask             grounded question answering with Llama, cited to retrieved sources
 
-Run with an engine config JSON:
-  PYTHONPATH=build/bindings:python python -m zcgvs_tools.service --config configs/scifact.json
+Run with an engine config JSON (``--llama`` enables /verify and /ask):
+  PYTHONPATH=build/bindings:python python -m zcgvs_tools.service --config configs/scifact.json \
+      --llama meta-llama/Llama-3.2-3B-Instruct
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from pydantic import BaseModel
 
 import zcgvs_engine
 from zcgvs_tools.config import backend_from_name, build_engine, describe, metric_from_name
+from zcgvs_tools.factcheck import ClaimVerifier, GroundedAnswerer
 
 
 class SearchRequest(BaseModel):
@@ -54,6 +58,17 @@ class RetrieveRequest(BaseModel):
 class AddRequest(BaseModel):
     ids: list[str]
     texts: list[str]
+
+
+class VerifyRequest(BaseModel):
+    claim: str
+    evidence_k: int = 3
+    explain: bool = True
+
+
+class AskRequest(BaseModel):
+    question: str
+    k: int = 5
 
 
 def _options(engine, request: SearchRequest) -> "zcgvs_engine.SearchOptions":
@@ -106,7 +121,20 @@ def _timing(timing) -> dict:
     }
 
 
-def create_app(engine) -> FastAPI:
+def _evidence(evidence) -> list[dict]:
+    return [
+        {
+            "rank": item.rank,
+            "doc_id": item.doc_id,
+            "similarity": item.similarity,
+            "rerank_score": item.rerank_score,
+            "text": item.text,
+        }
+        for item in evidence
+    ]
+
+
+def create_app(engine, llama=None) -> FastAPI:
     app = FastAPI(title="Zero-Copy GPU Vector Search & Re-Ranking Engine")
 
     @app.get("/health")
@@ -119,6 +147,7 @@ def create_app(engine) -> FastAPI:
             "hybrid_available": engine.has_lexical_index,
             "rescore_available": engine.has_rescore_store,
             "reranker": engine.has_reranker,
+            "llama": llama.name if llama is not None else None,
         }
 
     @app.get("/stats")
@@ -173,6 +202,30 @@ def create_app(engine) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(error)) from error
         return {"corpus_size": engine.corpus_size}
 
+    def _require_llama():
+        if llama is None:
+            raise HTTPException(status_code=503, detail="start the service with --llama")
+        return llama
+
+    @app.post("/verify")
+    def verify(request: VerifyRequest) -> dict:
+        verifier = ClaimVerifier(engine, _require_llama(), evidence_k=request.evidence_k)
+        verdict = verifier.verify(request.claim, explain=request.explain)
+        return {
+            "claim": verdict.claim,
+            "verdict": verdict.label,
+            "probabilities": verdict.probabilities,
+            "explanation": verdict.explanation,
+            "evidence": _evidence(verdict.evidence),
+            "timing_ms": verdict.timing_ms,
+        }
+
+    @app.post("/ask")
+    def ask(request: AskRequest) -> dict:
+        answerer = GroundedAnswerer(engine, _require_llama(), k=request.k)
+        generation, evidence, timing = answerer.answer(request.question)
+        return {"answer": generation.text, "sources": _evidence(evidence), "timing_ms": timing}
+
     return app
 
 
@@ -181,10 +234,17 @@ def main() -> None:
     parser.add_argument("--config", required=True, help="engine config JSON")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--llama", default=None,
+                        help="Llama model id or local dir; enables /verify and /ask")
     args = parser.parse_args()
 
     engine = build_engine(args.config)
-    uvicorn.run(create_app(engine), host=args.host, port=args.port)
+    llama = None
+    if args.llama:
+        from zcgvs_tools.llama import Llama
+
+        llama = Llama(args.llama)
+    uvicorn.run(create_app(engine, llama), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
