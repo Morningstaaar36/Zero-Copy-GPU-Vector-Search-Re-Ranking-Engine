@@ -33,6 +33,18 @@ def print_evidence(evidence) -> None:
               f"{item.text[:110]}…")
 
 
+def print_quote_checks(verdict) -> None:
+    print(f"\n{BOLD}quote check{RESET} {DIM}(is each quoted passage in the cited abstract?){RESET}")
+    if not verdict.quote_checks:
+        print("  no verbatim quotations to check")
+        return
+    for check in verdict.quote_checks:
+        mark = f"{COLORS['SUPPORT']}✓ verified{RESET}" if check.verified else \
+            f"{COLORS['CONTRADICT']}✗ NOT VERIFIED{RESET}"
+        where = f"[{check.cited}]" if check.cited else f"in {check.found_in or 'no abstract'}"
+        print(f"  {mark}  {where}  “{check.quote[:90]}{'…' if len(check.quote) > 90 else ''}”")
+
+
 def print_timing(timing: dict) -> None:
     order = [
         ("gpu_search", "CUDA scan + top-K", "ms"),
@@ -75,6 +87,7 @@ def verify(verifier: ClaimVerifier, claim: str) -> None:
     verifier.explain(verdict, on_text=stream)
     verdict.timing_ms["end_to_end"] = (time.perf_counter() - start) * 1000.0
     print()
+    print_quote_checks(verdict)
     print_timing(verdict.timing_ms)
 
 
