@@ -15,6 +15,12 @@ That runs, in order: ONNX Runtime → Python environment → model export → co
 quantized variants → BM25 index. Roughly **4–5 GB** of downloads and 5–15 minutes on a warm
 connection, dominated by PyTorch.
 
+The Llama layer is a separate, optional download (see [Llama weights](#6-llama-32-weights--9-gb-optional)):
+
+```bash
+bash scripts/download_llama.sh
+```
+
 Skip the models and corpus (dependencies only):
 
 ```bash
@@ -156,6 +162,22 @@ python -m zcgvs_tools.build_lexical \
 `quantize` refuses to run on anything but a float32 source, so a quantized file can never be
 re-quantized by accident.
 
+### 6. Llama 3.2 weights — ~9 GB, optional
+
+```bash
+bash scripts/download_llama.sh                       # 3B (6.4 GB) and 1B (2.5 GB), plus SciFact labels
+LLAMA_MODELS="Llama-3.2-1B-Instruct" bash scripts/download_llama.sh   # just the small one
+```
+
+Only needed for `fact_check.py`, `run_factcheck.sh`, the `/verify` and `/ask` endpoints and
+`eval_llama.py`; the retrieval engine runs without it. The script also fetches the original
+SciFact release (~3 MB, `data/scifact_claims/`), which carries the SUPPORT / CONTRADICT /
+NOT ENOUGH INFO labels the evaluation needs.
+
+The official `meta-llama/*` repositories are **gated**: accept the license on the model page and
+run `hf auth login` once. Without access the script falls back, with a notice, to the
+`unsloth/*` mirror of the same release, which the Llama 3.2 Community License permits.
+
 ## Verifying the download
 
 ```bash
@@ -192,12 +214,15 @@ for name in ['', '.float16', '.int8', '.binary']:
 | ONNX Runtime | ~1.5 GB extracted | — |
 | Python `.venv` | ~3 GB | — |
 | Models | ~170 MB | ~200 MB (both ONNX sessions) |
+| Llama 3.2 3B Instruct (bf16) | 6.4 GB | 6.8 GB peak (PyTorch) |
+| Llama 3.2 1B Instruct (bf16) | 2.5 GB | 3.4 GB peak (PyTorch) |
 | SciFact float32 corpus | ~8 MB | ~8 MB |
 | SciFact binary + float32 rescore | ~8.3 MB | ~8.3 MB |
 | SciFact lexical index | ~10 MB | ~10 MB |
 | Search scratch | — | grows with `batch × corpus_size × 4 B` |
 
-An 8 GB card handles SciFact comfortably; the scan scratch is the term that grows, at
+An 8 GB card handles SciFact retrieval comfortably (the whole 3B fact-checking demo measured
+about 8.5 GB, so use the 1B model on an 8 GB card); the scan scratch is the term that grows, at
 `batch × N × 4` bytes for the dense scores and the same again if hybrid is on.
 
 ## Offline / air-gapped
