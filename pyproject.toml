@@ -1,0 +1,39 @@
+[build-system]
+requires = ["scikit-build-core>=0.8", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "zcgvs-engine"
+version = "0.3.0"
+description = "Zero-Copy GPU Vector Search & Re-Ranking Engine"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+tools = [
+    "torch>=2.2",
+    "sentence-transformers>=2.7",
+    "transformers>=4.40",
+    "optimum[onnxruntime-gpu]>=1.20",
+    "datasets>=2.19",
+    "onnx>=1.16",
+]
+serve = ["fastapi>=0.110", "uvicorn>=0.29", "pydantic>=2.6"]
+
+[project.scripts]
+zcgvs-export-models = "zcgvs_tools.export_models:main"
+zcgvs-embed-corpus = "zcgvs_tools.embed_corpus:main"
+zcgvs-quantize = "zcgvs_tools.quantize:main"
+zcgvs-build-lexical = "zcgvs_tools.build_lexical:main"
+zcgvs-serve = "zcgvs_tools.service:main"
+
+[tool.scikit-build]
+minimum-version = "0.8"
+cmake.version = ">=3.24"
+cmake.args = ["-DZCGVS_BUILD_APPS=OFF", "-DZCGVS_BUILD_TESTS=OFF"]
+wheel.packages = ["python/zcgvs_tools"]
+
+# ONNX Runtime is not on PyPI as a C++ SDK, so its location must be supplied at build
+# time, e.g.:
+#   pip install . -C cmake.define.ONNXRUNTIME_ROOT=$PWD/third_party/onnxruntime
