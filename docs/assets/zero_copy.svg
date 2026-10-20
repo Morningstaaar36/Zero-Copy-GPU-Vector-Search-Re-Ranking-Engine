@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 372" width="900" height="372" role="img" aria-labelledby="t d" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<title id="t">What zero-copy means in this engine</title>
+<desc id="d">A naive GPU search copies a score for every one of a million documents, 4,000,000 bytes, to the CPU to sort. This engine selects and re-scores on the GPU and copies only the final 10 ids and scores, 80 bytes.</desc>
+<style>
+.bg{fill:#fcfcfb}.panel{fill:#f4f3f0;stroke:#e4e3df}.line{stroke:#c9c8c2;fill:none}
+.t1{fill:#0b0b0b}.t2{fill:#52514e}.t3{fill:#6b6a65}
+.blue{fill:#2a78d6}.orange{fill:#eb6834}.gray{fill:#8a8982}.good{fill:#0ca30c}
+.arrow{stroke:#52514e;fill:none}
+@media (prefers-color-scheme:dark){
+.bg{fill:#1a1a19}.panel{fill:#232321;stroke:#34342f}.line{stroke:#4a4a45}
+.t1{fill:#f0efec}.t2{fill:#c3c2b7}.t3{fill:#a09f95}
+.blue{fill:#3987e5}.orange{fill:#d95926}.gray{fill:#6b6a65}.good{fill:#0ca30c}
+.arrow{stroke:#c3c2b7}}
+</style>
+<rect class="bg" width="900" height="372" rx="10"/>
+<text class="t1" x="30" y="40" font-size="20" font-weight="700" text-anchor="start" >What “zero-copy” means here: almost nothing crosses to the CPU</text>
+<text class="t2" x="30" y="64" font-size="13" font-weight="400" text-anchor="start" >Per query, searching 1,000,000 documents and returning the 10 best</text>
+<rect class="panel" x="24" y="84" width="852" height="118" rx="10"/>
+<text class="t1" x="44" y="112" font-size="14" font-weight="700" text-anchor="start" >A naive stack</text>
+<rect class="orange" x="44" y="128" width="250" height="58" rx="8"/>
+<text class="t1" x="58" y="152" font-size="12.5" font-weight="600" text-anchor="start" style="fill:#fff">GPU computes a score for</text>
+<text class="t1" x="58" y="169" font-size="12.5" font-weight="600" text-anchor="start" style="fill:#fff">all 1,000,000 documents</text>
+<line class="line" x1="294" y1="157" x2="618" y2="157" stroke-width="3"/>
+<path class="arrow" d="M610,150 l9,7 l-9,7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t2" x="456" y="146" font-size="12" font-weight="400" text-anchor="middle" >copies every score to the CPU</text>
+<text class="t1" x="456" y="178" font-size="22" font-weight="700" text-anchor="middle" >4,000,000 bytes</text>
+<rect class="panel" x="632" y="128" width="224" height="58" rx="8" style="fill:none"/>
+<text class="t1" x="744" y="152" font-size="13" font-weight="700" text-anchor="middle" >CPU</text>
+<text class="t2" x="744" y="170" font-size="11.5" font-weight="400" text-anchor="middle" >sorts a million numbers</text>
+<rect class="panel" x="24" y="214" width="852" height="118" rx="10"/>
+<text class="t1" x="44" y="242" font-size="14" font-weight="700" text-anchor="start" >This engine</text>
+<rect class="blue" x="44" y="258" width="250" height="58" rx="8"/>
+<text class="t1" x="58" y="282" font-size="12.5" font-weight="600" text-anchor="start" style="fill:#fff">GPU scores, sorts, re-scores</text>
+<text class="t1" x="58" y="299" font-size="12.5" font-weight="600" text-anchor="start" style="fill:#fff">and picks the best 10</text>
+<line class="line" x1="294" y1="287" x2="618" y2="287" stroke-width="3"/>
+<path class="arrow" d="M610,280 l9,7 l-9,7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="t2" x="456" y="276" font-size="12" font-weight="400" text-anchor="middle" >copies only the final 10 ids + scores</text>
+<text class="t1" x="456" y="308" font-size="22" font-weight="700" text-anchor="middle" >80 bytes</text>
+<rect class="panel" x="632" y="258" width="224" height="58" rx="8" style="fill:none"/>
+<text class="t1" x="744" y="282" font-size="13" font-weight="700" text-anchor="middle" >CPU</text>
+<text class="t2" x="744" y="300" font-size="11.5" font-weight="400" text-anchor="middle" >gets the answer, nothing else</text>
+<text class="t2" x="450" y="352" font-size="12.5" font-weight="400" text-anchor="middle" >That is 50,000× less data per query. Measured here: the single device-to-host copy takes 0.08 ms.</text>
+</svg>
