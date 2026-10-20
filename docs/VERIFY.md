@@ -11,7 +11,7 @@ tiered, so a partial setup still verifies what it can rather than failing outrig
 
 | Tier | Check | Needs | Skip with |
 | --- | --- | --- | --- |
-| 1 | Wire-format round-trips | NumPy only | — |
+| 1 | Wire-format round-trips, plus the Llama layer's pure logic | NumPy only | — |
 | 2 | CUDA kernel correctness | A build + a GPU | `SKIP_KERNELS=1` |
 | 3 | End-to-end query | Models + corpus | `SKIP_ENGINE=1` |
 | 4 | Storage / rescore / hybrid variants | Derived artifacts | `SKIP_VARIANTS=1` |
@@ -23,13 +23,14 @@ Expected tail:
  summary
 ==============================================================
   PASS     formats round-trip
+  PASS     llama logic (calibration, fusion)
   PASS     CUDA kernel tests
   PASS     end-to-end query
   PASS     int8 storage
   PASS     binary + on-device rescore
   PASS     hybrid BM25 + dense
 
-  6 passed, 0 failed, 0 skipped
+  7 passed, 0 failed, 0 skipped
 ```
 
 ---
@@ -65,6 +66,23 @@ Expected:
   ...
 formats: PASS
 ```
+
+### Tier 1b — the Llama layer's logic (no GPU, no weights)
+
+```bash
+python tests/python/test_factcheck.py
+```
+
+Thirteen checks on everything in `factcheck.py` that does not need a model: macro-F1, the
+contextual-calibration fit (does it undo a deliberately planted +3 SUPPORT prior?), the
+calibrated-probability renormalization, reciprocal-rank fusion, the SciFact label derivation,
+and the **quote checker** — it accepts a verbatim quote, is case- and whitespace-insensitive,
+handles `...`, strips a `[n]` label written inside the quote marks, and rejects both a
+fabricated quote and a real quote credited to the wrong abstract.
+
+What this does *not* verify is model quality. That is measured, not asserted, by
+`python python/benchmarks/eval_llama.py` (verification, reranking, latency and the
+quote-grounding audit); see [LLAMA.md](LLAMA.md) for the results.
 
 ## Tier 2 — CUDA kernel correctness
 
