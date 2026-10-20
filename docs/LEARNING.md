@@ -150,12 +150,12 @@ This is the heart of the project. Budget real time here.
 
 **Checkpoint**
 
-1. In `similarityBatchKernel`, the accumulation loop is
+1. In `similarityScanKernel`, the accumulation loop is
 
    ```cpp
    #pragma unroll
    for (int q = 0; q < kQueryTile; ++q) {
-       if (q < tile) accumulateMetric(metric, shared_queries[q * dim + t], value, partial[q]);
+       if (q < tile) { /* accumulate query q against values[0..kVec) into partial[q] */ }
    }
    ```
 
@@ -163,21 +163,23 @@ This is the heart of the project. Budget real time here.
    `for (int q = 0; q < tile; ++q)`? What exactly does the compiler do differently, and what
    is the performance consequence? (`docs/ARCHITECTURE.md` states the answer — make sure you
    can derive it rather than recite it.)
-2. The kernel `return`s early for a masked document, and `blockReduceSum` contains a
-   `__syncthreads()`. Explain why this is not a deadlock. Then construct a one-line change to
-   the mask check that *would* deadlock.
+2. The kernel `continue`s past a masked document, then reduces with `__shfl_xor_sync` over a
+   full-warp mask. Explain why that is safe. Then construct a one-line change to the mask
+   check that would make the shuffle undefined behaviour.
 3. Query tiling reads each corpus row once for up to 8 queries. Derive the new arithmetic
    intensity and explain why the speedup flattens out past `kQueryTile`.
-4. `hammingBatchKernel` accumulates popcounts into a `float` and later casts to `int`. For
-   what value of `dim` would that become lossy, and why is the current code safe?
+4. `hammingScanKernel` gives each *thread* a document, while the float kernels give each
+   *warp* one. At `dim = 384`, how many bytes is a binary row, and what fraction of a warp's
+   lanes would sit idle under warp-per-document?
 5. `launchSimilarity` chunks the batch when shared memory would be exceeded. Compute, for
    `dim = 1536`, how many queries fit per block under `kMaxQuerySharedBytes = 40960`.
-6. Both kernels declare `extern __shared__ unsigned int zcgvs_shared_raw[]` and one of them
-   `reinterpret_cast`s it to `float*`. Why is that cast safe here?
+6. Both kernels declare `extern __shared__ float4 zcgvs_shared_vec[]` and then cast it to
+   `float*` or `unsigned int*`. Why `float4` rather than `unsigned int`?
 
-**Experiment.** In `similarity.cu`, change the accumulation loop stride from `blockDim.x` to
-`1` and give each thread a contiguous chunk instead. Predict the slowdown factor *before*
-running `zcgvs_bench_kernels`. Then run it. (Revert afterwards.)
+**Experiment.** In `launchScan`, replace `persistentGrid(...)` with `needed` (one block per 8
+documents, no striding). Every block now re-stages the query tile. Predict the slowdown for
+float32 *and* for int8 from the bytes staged per block versus the bytes of corpus it scores,
+before running `zcgvs_bench_kernels`. Then run it. (Revert afterwards.)
 
 ---
 
