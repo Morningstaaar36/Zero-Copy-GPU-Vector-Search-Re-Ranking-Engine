@@ -17,6 +17,8 @@ sys.path.insert(0, str(ROOT / "python"))
 from zcgvs_tools.factcheck import (  # noqa: E402
     LABELS,
     ClaimVerifier,
+    Evidence,
+    check_quotes,
     fit_label_bias,
     macro_f1,
     reciprocal_rank_fusion,
@@ -80,6 +82,51 @@ def test_rrf_rewards_agreement():
     fused = reciprocal_rank_fusion([["a", "b", "c"], ["b", "a", "c"]])
     assert set(fused[:2]) == {"a", "b"} and fused[2] == "c"
     assert reciprocal_rank_fusion([["x", "y"], ["y", "z"]])[0] == "y"
+
+
+def _evidence() -> list[Evidence]:
+    return [
+        Evidence(1, "a", "Obesity surgery is common. Prevalence of depression was 19% overall.", 0, 0),
+        Evidence(2, "b", "Statistical analysis revealed significant improvements in depressive "
+                         "symptoms and self-esteem  with peak improvements 1 year after surgery.", 0, 0),
+    ]
+
+
+def test_quote_check_accepts_verbatim_quote_in_the_cited_abstract():
+    text = ('Study [2] reported "significant improvements in depressive symptoms and '
+            'self-esteem" [2], which supports the claim.')
+    (check,) = check_quotes(text, _evidence())
+    assert check.verified and check.cited == 2 and check.found_in == [2]
+
+
+def test_quote_check_is_case_and_whitespace_insensitive():
+    text = 'It found "Significant Improvements in depressive symptoms and self-esteem". [2]'
+    assert check_quotes(text, _evidence())[0].verified
+
+
+def test_quote_check_rejects_a_fabricated_quote():
+    text = 'The authors state "surgery cured every patient of depression within weeks" [2].'
+    (check,) = check_quotes(text, _evidence())
+    assert not check.verified and check.found_in == []
+
+
+def test_quote_check_rejects_a_misattributed_quote():
+    # Real wording, but it lives in abstract [2], not the abstract the model cited.
+    text = 'Abstract [1] shows "significant improvements in depressive symptoms and self-esteem" [1].'
+    (check,) = check_quotes(text, _evidence())
+    assert check.found_in == [2] and check.cited == 1 and not check.verified
+
+
+def test_quote_check_handles_ellipsis_and_ignores_short_scare_quotes():
+    text = 'It reports "significant improvements in depressive symptoms ... peak improvements 1 year after surgery" [2], a "good" sign.'
+    checks = check_quotes(text, _evidence())
+    assert len(checks) == 1 and checks[0].verified
+
+
+def test_quote_check_strips_a_label_written_inside_the_quote_marks():
+    text = 'See "[2] Statistical analysis revealed significant improvements in depressive symptoms".'
+    (check,) = check_quotes(text, _evidence())
+    assert check.cited == 2 and check.verified
 
 
 def main() -> int:
