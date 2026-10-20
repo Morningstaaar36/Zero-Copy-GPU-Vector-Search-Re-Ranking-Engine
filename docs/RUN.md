@@ -236,8 +236,8 @@ curl -s -X POST localhost:8000/ask -H 'content-type: application/json' \
   -d '{"question": "What links obesity to insulin resistance?", "k": 5}'
 ```
 
-`/verify` returns the verdict, calibrated label probabilities, the explanation, the evidence
-and a per-stage timing breakdown; `/ask` returns the answer and its sources. See
+`/verify` returns the verdict, calibrated label probabilities, the explanation, its
+`quote_checks`, the evidence and a per-stage timing breakdown; `/ask` returns the answer and its sources. See
 [LLAMA.md](LLAMA.md).
 
 Every per-request option is exposed: `metric`, `allow`, `hybrid`, `dense_weight`,
