@@ -103,21 +103,57 @@ What the table says:
 ## Job 2 — the explanation is generated after the verdict
 
 Once the label is fixed, the verdict is appended to the conversation as the assistant's turn
-and Llama is asked to justify it in two or three sentences, citing abstracts as `[1]`–`[3]` and
-quoting the key finding. The explanation streams token by token (`TextIteratorStreamer` on a
+and Llama is asked to justify it in two or three sentences, supporting it with one or two
+**exact quotations**, each in double quotes and followed by the number of the abstract it came
+from, like `"..." [2]`. The explanation streams token by token (`TextIteratorStreamer` on a
 worker thread), so the user sees the verdict and its confidence bars immediately and the
 reasoning as it is written.
 
 Conditioning the explanation on the classifier's label keeps the two consistent. The cost is
-that the explanation can rationalize a wrong verdict — which is exactly why the verdict carries
-a calibrated probability and the evidence is always shown alongside it.
+that the explanation can rationalize a wrong verdict — which is why the verdict carries a
+calibrated probability and the evidence is always shown alongside it.
 
-Generation can also misread a correct source. In the README's aspirin example, abstract [1]
-reports adenomas in *17% of aspirin patients versus 27% on placebo* (P = 0.004); the 3B model
-wrote "a 17% lower incidence". The verdict was right and the second citation was quoted
-exactly, but the first number was not. The verdict probability comes from the classifier, not
-from the prose, and the evidence is printed in full, so a reader can always check the
-explanation against its sources — and should.
+### The quote checker
+
+A 3B model asked to explain itself sometimes misquotes. In an early version of the demo, the
+explanation credited an abstract with an "improvement" finding that it did not contain, cited a
+page number that abstracts do not have, and turned "adenomas in 17% of aspirin patients *versus
+27% on placebo*" into "a 17% lower incidence". Rather than hide that, the prompt now asks for
+verbatim quotations and `check_quotes` verifies each one mechanically:
+
+- a quote is **verified** if its words appear verbatim in a retrieved abstract (case, spacing and
+  edge punctuation aside; a quote with `...` is checked fragment by fragment) **and**, when the
+  model wrote a citation `[n]` immediately after it, in *that* abstract (a citation placed before
+  the quote, as in "abstract [2] states that ...", is not read, so only the words are checked);
+- otherwise it is **not found verbatim** (invented, or a paraphrase dressed as a quote) or
+  **misattributed** (real words, wrong abstract);
+- the demo prints every check, `/verify` returns them as `quote_checks`, and
+  `Verdict.quotes_verified` is true only if there is at least one quote and all of them pass.
+
+Audit — Llama-3.2-3B, explanations for the first 100 SciFact dev claims
+(`python python/benchmarks/eval_llama.py --tasks grounding`):
+
+| | Count |
+| --- | ---: |
+| Explanations containing a quotation | 86 of 100 |
+| Quotations produced | 137 |
+| **Verified verbatim, in the cited abstract** | **121 (88%)** |
+| Not found verbatim in any retrieved abstract | 13 |
+| Real words, wrong abstract cited | 3 |
+| Explanations in which *every* quotation verified | 70 of 100 |
+
+The results file keeps the first 8 of the 16 failures (`examples_of_failures`). They are a mix
+of near-misses (a word changed or dropped inside the quotation marks), misattributions (real
+words, wrong abstract number), and genuine hallucination — in one case the model quoted the
+*claim's own sentence* as if it were evidence from an abstract. The checker flags all of them.
+
+The checker is strict on purpose. In one run the model quoted "...(beta = -0.11; 95% CI, -0.18 to
+-0.04; P = 0.002)" where the abstract says "95% confidence interval [CI]". The numbers are
+right and the quote is flagged anyway, because a quotation mark promises verbatim text.
+
+What it does **not** do: it does not check paraphrases, and a verbatim quote can still be
+used to support the wrong conclusion. The checker is a tripwire for fabricated evidence, not a
+proof of correct reasoning — which is why the abstracts are always printed beside the verdict.
 
 ## Job 3 — Llama as a zero-shot reranker
 
@@ -177,21 +213,27 @@ citing each sentence as `[n]` and saying so when the sources are insufficient. I
 retrieval path with a generation prompt; it is exposed as `--ask` in the demo and `POST /ask`
 in the service.
 
+Unlike the other three jobs, **this one is a demonstration, not a benchmarked result**: there is
+no labelled question set behind it, and its output is not quote-checked. Model size matters
+visibly. Asked "What causes beta cell failure in type 2 diabetes?", the 3B model writes a hedged
+paragraph that cites sources [1] and [3]; the 1B model mostly restates the five abstracts, garbles
+one of them, and concludes the sources "do not provide a clear answer". Use the 3B model.
+
 ## Latency
 
 Median of 20 claims after warmup, full `verify` with explanation, Llama-3.2-3B in bf16:
 
 | Stage | ms |
 | --- | ---: |
-| query embedding (ONNX, host-visible) | 1.01 |
+| query embedding (ONNX, host-visible) | 1.18 |
 | **CUDA scan + top-K** (CUDA events) | 0.08 |
-| device → host, k results (pinned) | 0.07 |
-| cross-encoder rerank, 100 candidates | 76.50 |
-| **Llama verdict** — one forward pass | 150.04 |
-| Llama explanation, first token | 158.08 |
-| Llama explanation, complete | 2360.70 |
-| **end to end**, with explanation | 2558.79 |
-| decode rate | 50 tokens/s |
+| device → host, k results (pinned) | 0.08 |
+| cross-encoder rerank, 100 candidates | 77.02 |
+| **Llama verdict** — one forward pass | 153.29 |
+| Llama explanation, first token | 159.25 |
+| Llama explanation, complete | 2519.51 |
+| **end to end**, with explanation | 2785.57 |
+| decode rate | 49 tokens/s |
 
 The CUDA scan and the device→host copy together are a rounding error next to either model.
 That is the honest headline: the retrieval engine makes the *search* free, which leaves the
