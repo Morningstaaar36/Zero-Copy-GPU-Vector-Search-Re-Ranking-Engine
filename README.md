@@ -1,209 +1,258 @@
-# Zero-Copy GPU Vector Search & Re-Ranking Engine — with Llama 3.2 fact-checking
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="Pipeline: a claim goes through a custom CUDA GPU search (0.08 ms), a cross-encoder re-rank, a Llama 3.2 verdict and a quote-checked explanation" width="900">
+</p>
 
-**A scientific fact-checker on one consumer GPU.** Hand-written CUDA kernels scan an
-embedding index at **88–94% of the card's memory bandwidth**, select and re-score candidates
-without the candidate set ever leaving VRAM, and hand the evidence to **Meta Llama 3.2**, which
-returns a calibrated SUPPORT / CONTRADICT / NOT ENOUGH INFO verdict in a single forward pass
-and streams an explanation that cites the abstracts it used.
+<p align="center">
+  <img alt="CUDA 13.3" src="https://img.shields.io/badge/CUDA-13.3-76B900?logo=nvidia&logoColor=white">
+  <img alt="C++17" src="https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white">
+  <img alt="Llama 3.2" src="https://img.shields.io/badge/Meta-Llama%203.2%201B%20%7C%203B-0467DF?logo=meta&logoColor=white">
+  <img alt="ONNX Runtime" src="https://img.shields.io/badge/ONNX%20Runtime-1.28-555">
+  <img alt="9 CUDA test suites" src="https://img.shields.io/badge/CUDA%20tests-9%20suites%20%C2%B7%20all%20pass-success">
+</p>
 
-![CUDA 13](https://img.shields.io/badge/CUDA-13.3-76B900?logo=nvidia&logoColor=white)
-![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
-![Llama 3.2](https://img.shields.io/badge/Meta-Llama%203.2%201B%20%7C%203B-0467DF?logo=meta&logoColor=white)
-![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-1.28%20CUDA%20EP-555)
-![tests](https://img.shields.io/badge/CUDA%20tests-9%2F9%20suites%20passing-success)
+# Zero-Copy GPU Vector Search & Re-Ranking Engine
+
+**Type a scientific claim. Get a verdict, a confidence, and an explanation whose quotes are checked
+against the source papers — in about a quarter of a second to the verdict.**
+
+---
+
+## In plain English
+
+You give it a claim, for example *"Bariatric surgery has a positive impact on mental health."*
+
+1. It **searches 5,183 research abstracts** and picks the few that matter most — in under a tenth
+   of a millisecond.
+2. Meta's **Llama 3.2** reads those abstracts and answers **Supported**, **Contradicted** or
+   **Not enough info**, with a confidence percentage.
+3. It **explains itself in plain English, quoting its sources** — and every quotation is
+   automatically checked against the paper it claims to come from.
+
+Think of it as a very fast librarian and a careful reader. The **librarian** is custom GPU code,
+written from scratch in CUDA, that finds the right papers at close to the physical speed limit
+of the graphics card's memory. The **reader** is Llama, which decides what those papers say about
+your claim.
+
+> **Why "zero-copy"?** A normal GPU search copies a score for every document back to the CPU
+> to sort them. Here the sorting and re-scoring happen *inside* the GPU, and only the final ten
+> answers travel back — [50,000× less data](#how-it-works).
+
+---
+
+## See it work
+
+Real output from `python/examples/fact_check.py` with Llama 3.2 3B (the timing table is
+collapsed to one line per claim). Claims are illustrative; aggregate accuracy is in
+[the numbers](#the-headline-numbers).
 
 ```text
-$ python python/examples/fact_check.py --llama models/llama/Llama-3.2-3B-Instruct \
-    --claim "Taking aspirin daily reduces the risk of colorectal cancer." \
-    --claim "Statins increase the risk of developing type 2 diabetes."
-index: 5183 abstracts, float32, 8.0 MB VRAM | model: Llama-3.2-3B-Instruct (6.4 GB bf16) | NVIDIA GeForce RTX 5060 Ti
+claim  Bariatric surgery has a positive impact on mental health.
 
-claim  Taking aspirin daily reduces the risk of colorectal cancer.
+evidence
+  [1] Mental Health Conditions Among Patients Seeking and Undergoing Bariatric …
+  [2] Psychological Outcome 4 Years after Restrictive Bariatric Surgery
+  [3] Preoperative Predictors of Weight Loss Following Bariatric Surgery: Syste…
 
-evidence (CUDA scan → on-device top-K → cross-encoder)
-  [1] doc 39903312  ce=+8.47  A randomized trial of aspirin to prevent colorectal adenomas in patients with previous colorectal cancer.. BAC…
-  [2] doc 7613033  ce=+8.04  Aspirin in the chemoprevention of colorectal neoplasia: an overview.. Considerable evidence supports the effec…
-  [3] doc 15648443  ce=+6.85  Long-term effect of aspirin on cancer risk in carriers of hereditary colorectal cancer: an analysis from the C…
-
-verdict SUPPORT (99.6% confidence)
-  SUPPORT          ████████████████████████  99.6%
-  CONTRADICT       ░░░░░░░░░░░░░░░░░░░░░░░░   0.3%
+verdict SUPPORT (99.7% confidence)
+  SUPPORT          ████████████████████████  99.7%
+  CONTRADICT       ░░░░░░░░░░░░░░░░░░░░░░░░   0.2%
   NOT ENOUGH INFO  ░░░░░░░░░░░░░░░░░░░░░░░░   0.1%
 
-why  The evidence supports the claim that taking aspirin daily reduces the risk of colorectal cancer. According to abstract [1], patients who received aspirin had a 17% lower incidence of colorectal adenomas compared to those who received placebo (P=0.004), and abstract [2] reports a pooled analysis showing that daily aspirin treatment for about five years was associated with a 34% reduction in 20-year CRC mortality. These findings suggest a protective effect of aspirin against colorectal cancer, as reported in abstracts [1] and [2].
+why  The evidence supports the claim that bariatric surgery has a positive impact on mental
+     health. The abstracts suggest that bariatric surgery is associated with significant
+     improvements in depressive symptoms, physical dimension of quality of life, and self-
+     esteem, with peak improvements 1 year after surgery, as stated in "...Statistical analysis
+     revealed significant improvements in depressive symptoms, physical dimension of quality of
+     life, and self-esteem with peak improvements 1 year after surgery." [2]. Additionally, the
+     study found that "significant correlations between weight loss and improvements in
+     depression, physical aspects of HRQOL (T2, T3, and T4), and self-esteem (T3) were
+     observed." [2].
 
-timing
-  CUDA scan + top-K                 0.08 ms
-  cross-encoder rerank             76.86 ms
-  Llama verdict (1 forward)       150.15 ms
-  Llama explanation              2468.72 ms
-  Llama decode rate                49.33 tok/s
-  end to end                     2699.63 ms
+quote check (is each quoted passage in the cited abstract?)
+  ✓ verified  [2]  “...Statistical analysis revealed significant improvements in depressive symptoms, physical…”
+  ✓ verified  [2]  “significant correlations between weight loss and improvements in depression, physical aspe…”
+timing  GPU search 0.08 ms · verdict 157 ms · explanation streams at 49 tok/s
+
+claim  Mitochondria are uninvolved in apoptosis.
+
+evidence
+  [1] Mitochondria: Dynamic Organelles in Disease, Aging, and Development
+  [2] Bioenergetic aspects of apoptosis, necrosis and mitoptosis
+  [3] Bax translocation and mitochondrial fragmentation induced by Helicobacter…
+
+verdict CONTRADICT (65.9% confidence)
+  SUPPORT          ██████░░░░░░░░░░░░░░░░░░  25.5%
+  CONTRADICT       ████████████████░░░░░░░░  65.9%
+  NOT ENOUGH INFO  ██░░░░░░░░░░░░░░░░░░░░░░   8.6%
+
+why  The claim that mitochondria are uninvolved in apoptosis is contradicted by the evidence
+     presented in the abstracts. For example, abstract [2] states that "ATP and rather often
+     mitochondrial hyperpolarization (i.e. an increase in membrane potential, ΔΨ) are required
+     for certain steps of apoptosis and necrosis." This suggests that mitochondria play a role
+     in apoptosis, contradicting the claim. Additionally, abstract [3] mentions "Bax
+     translocation and mitochondrial fragmentation" which further supports the involvement of
+     mitochondria in apoptosis.
+
+quote check (is each quoted passage in the cited abstract?)
+  ✓ verified  in [2]  “ATP and rather often mitochondrial hyperpolarization (i.e. an increase in membrane potenti…”
+  ✓ verified  in [3]  “Bax translocation and mitochondrial fragmentation”
+timing  GPU search 0.08 ms · verdict 124 ms · explanation streams at 50 tok/s
 
 claim  Statins increase the risk of developing type 2 diabetes.
 
-evidence (CUDA scan → on-device top-K → cross-encoder)
-  [1] doc 120626  ce=+3.85  Mechanisms linking obesity to insulin resistance and type 2 diabetes. Obesity is associated with an increased …
-  [2] doc 6176498  ce=+2.55  Biomarkers of endothelial dysfunction and risk of type 2 diabetes mellitus.. CONTEXT Endothelial dysfunction o…
-  [3] doc 8708082  ce=+2.53  The prevention of type 2 diabetes. Type 2 diabetes mellitus (T2DM) affects more than 7% of adults in the US an…
+evidence
+  [1] Mechanisms linking obesity to insulin resistance and type 2 diabetes
+  [2] Biomarkers of endothelial dysfunction and risk of type 2 diabetes mellitus
+  [3] The prevention of type 2 diabetes
 
 verdict NOT ENOUGH INFO (88.6% confidence)
   SUPPORT          ░░░░░░░░░░░░░░░░░░░░░░░░   0.1%
   CONTRADICT       ███░░░░░░░░░░░░░░░░░░░░░  11.3%
   NOT ENOUGH INFO  █████████████████████░░░  88.6%
 
-why  The verdict is NOT ENOUGH INFO because the provided abstracts do not directly address the relationship between statins and the risk of developing type 2 diabetes. Abstract [2] does mention endothelial dysfunction, which is a risk factor for type 2 diabetes, but it does not link statins to this risk. Abstract [3] discusses prevention strategies for type 2 diabetes, including lifestyle modification and medications, but does not mention statins.
+why  The verdict is NOT ENOUGH INFO because the abstracts do not provide direct evidence linking
+     statins to the development of type 2 diabetes. The abstracts focus on the relationship
+     between obesity, insulin resistance, endothelial dysfunction, and type 2 diabetes, but do
+     not mention statins. For example, "Abnormalities in β-cell function are therefore critical
+     in defining the risk and development of type 2 diabetes." [1]
 
-timing
-  CUDA scan + top-K                 0.08 ms
-  cross-encoder rerank             75.81 ms
-  Llama verdict (1 forward)       121.01 ms
-  Llama explanation              1919.03 ms
-  Llama decode rate                49.69 tok/s
-  end to end                     2127.42 ms
+quote check (is each quoted passage in the cited abstract?)
+  ✓ verified  [1]  “Abnormalities in β-cell function are therefore critical in defining the risk and developme…”
+timing  GPU search 0.07 ms · verdict 121 ms · explanation streams at 50 tok/s
 ```
 
-Real output, unedited apart from omitting a third claim and three timing rows per claim. Two
-things are worth noticing. The statin claim gets **NOT ENOUGH INFO**: SciFact contains no
-statin–diabetes abstract, and the model says so instead of inventing one. And the aspirin explanation contains a real mistake:
-abstract [1] reports adenomas in 17% of aspirin patients *versus 27%* on placebo, which the
-model paraphrased as "a 17% lower incidence". The verdict and the [2] quote are correct. This
-is why the verdict's probability comes from the classifier rather than the prose, and why the
-evidence is always printed beside it.
+---
 
-Every number on this page was measured on the machine described in
-[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) and is reproduced by a script in this repository.
+## The headline numbers
 
-## Results at a glance
+All measured on one RTX 5060 Ti (16 GB), median of repeated runs after warmup, and reproduced by
+the scripts in this repo.
 
-| What | Measured | Against |
+| What | Result | In plain English |
 | --- | --- | --- |
-| Scan 1M × 384 embeddings, **int8** | **0.957 ms** — 401 GB/s, 90% of DRAM peak | 7.94 ms before the kernel rewrite (**8.3×**) |
-| Scan 1M × 384 embeddings, **binary** | **0.122 ms** — 88% of peak | 5.43 ms before (**44×**) |
-| Scan 1M × 384, **float32** | 3.648 ms — 94% of peak | cuBLAS `sgemv`: 3.625 ms (a tie) |
-| Retrieval on SciFact: query text → ranked candidates, no rerank | **0.73 ms/query**, 1 375 queries/s | — |
-| int8 index vs float32, SciFact nDCG@10 | **0.6807 vs 0.6807** at 4× less VRAM | — |
-| Rerank: cross-encoder fused with **Llama-3.2-1B** query likelihood (RRF) | nDCG@10 **0.6976** | cross-encoder alone 0.6807 — +0.017, but the 95% CI [−0.002, +0.036] crosses zero |
-| Claim verification, Llama-3.2-3B, retrieved evidence | macro-F1 **0.514** | majority class 0.195 |
-| Full fact-check: retrieve + verdict | **228 ms** to a calibrated verdict | explanation then streams at 50 tok/s |
+| Search speed, 1M documents, int8 | **0.959 ms** · 89% of memory bandwidth | Reads data about as fast as the hardware physically allows |
+| Same kernel, float32, vs NVIDIA's own cuBLAS | **3.650 ms vs 3.625 ms** | Matches NVIDIA's library — which cannot do int8, binary, filtering or L2 at all |
+| Search, SciFact (5,183 abstracts) | **0.08 ms** per query | The search is a rounding error; the models dominate the wait |
+| Smaller index, same accuracy | **4× less memory**, nDCG@10 **0.6807 → 0.6807** | int8 compression cost nothing measurable |
+| Fact-check verdict (3 labels) | **55% accuracy · macro-F1 0.514** | Always guessing "Supported" scores 41% / 0.195 |
+| Time to a verdict | **235 ms** | Retrieve, re-rank, and classify in one forward pass |
+| Quotes in explanations | **88% (121 of 137)** are verbatim in the cited abstract | The rest are flagged on screen, not silently shown |
+| Rewrite of the search kernel | up to **44× faster** than my first version | First version: correct, but 5–8 ms at every precision |
 
-![Scan kernel rewrite: share of DRAM peak](docs/assets/kernel_roofline.svg)
+<p align="center">
+  <img src="docs/assets/kernel_roofline.svg" alt="Search kernel before and after the rewrite: share of memory bandwidth for float32, float16, int8 and binary" width="760">
+</p>
 
-## How Llama is used
+---
 
-Llama does four distinct jobs, and each one is measured separately in
-[`docs/LLAMA.md`](docs/LLAMA.md):
+## Why you can trust the numbers
 
-1. **Verdict as a classifier.** The claim and the top-3 retrieved abstracts go through
-   Llama-3.2-3B-Instruct **once**. The verdict is read from the logits of the three label
-   tokens at the first answer position — computed in fp32 from the final hidden state, using
-   only those three rows of the LM head. No decoding, no output parsing, a real probability.
-   The label priors are **calibrated** (Zhao et al., 2021) on SciFact's *train* split and
-   frozen before the test claims are touched.
-2. **Cited explanation.** With the verdict fixed, Llama writes two or three sentences that
-   quote the key finding and cite `[1]`–`[3]`, streamed token by token.
-3. **Zero-shot reranking.** Two scoring rules: UPR-style query likelihood (Sachan et al.,
-   2022), where Llama reads each candidate abstract and scores how probable it finds the actual
-   claim, and a yes/no relevance judgement. Neither beats the trained cross-encoder on its
-   own; fused with it by reciprocal-rank fusion, 1B query likelihood gives the best system
-   measured (+0.017 nDCG@10), though a paired bootstrap says 300 queries cannot call that
-   significant.
-4. **Grounded Q&A.** `--ask` / `POST /ask` answers questions only from retrieved sources,
-   with sentence-level citations.
+<p align="center">
+  <img src="docs/assets/rigor.svg" alt="Six rigor practices: CPU-reference tests, held-out test set, bootstrap error bars, negative results published, machine-checked quotes, one-command reproduction" width="900">
+</p>
 
-Reported honestly, including what did not go the way I expected: the yes/no relevance prompt
-*scrambles* the dense ranking with the 1B model (nDCG@10 0.25 vs 0.65) and only becomes
-useful at 3B; query likelihood shows
-the opposite trend (1B beats 3B); uncalibrated, the 1B model never predicts CONTRADICT; and an
-early bf16 version of the scorer tied most candidates. Those findings, and the fixes, are in
-[`docs/LLAMA.md`](docs/LLAMA.md).
+Five things the measurements taught me, each documented rather than smoothed over:
 
-## Pipeline
+- **My first kernel was correct and still slow.** It passed every test but ran all four storage
+  precisions at the same speed. Profiling showed every block re-loaded the queries; the fix
+  (a persistent kernel) is the chart above.
+- **Llama needed calibration.** Raw, the 1B model *never* predicted "Contradicted". Three offsets
+  fitted on training claims (never the test claims) fixed that: macro-F1 +0.12 (1B), +0.08 (3B).
+- **A precision bug hid in my first scorer.** bf16 logits tied most candidates; computing the
+  answer rows in float32 fixed it.
+- **Some ideas lost, and are reported as losses.** Hybrid keyword search was slightly *worse*
+  than dense search on this dataset, and no Llama-only reranker beat the trained cross-encoder.
+- **A promising gain isn't called a win.** Fusing Llama 1B with the cross-encoder scores +0.017
+  nDCG@10, but the bootstrap interval [−0.002, +0.036] crosses zero, so it is reported as
+  "promising, not proven".
 
-```mermaid
-flowchart LR
-    Q[Claim or query] --> E[Embed query<br/>bi-encoder, ONNX]
-    Q --> TK[WordPiece terms]
-    E --> S[CUDA: persistent scan<br/>fp32 / fp16 / int8 / binary]
-    TK --> BM[CUDA: BM25 scatter-add<br/>over CSR postings]
-    BM --> F[CUDA: max-normalize<br/>+ fuse into dense scores]
-    S --> F
-    F --> T[CUDA: recursive<br/>bitonic top-K]
-    T --> RS[CUDA: gather + rescore<br/>at exact precision]
-    RS --> T2[CUDA: top-K + index remap]
-    T2 --> R[Cross-encoder rerank<br/>ONNX, candidates only]
-    R --> LV[Llama 3.2: verdict<br/>1 forward pass, calibrated]
-    LV --> LX[Llama 3.2: cited<br/>explanation, streamed]
-    T2 -.-> LR[Llama 3.2: query-<br/>likelihood rerank]
-    LR -. RRF .-> R
-    D[(Corpus in VRAM)] -.-> S
-    X[(Exact-precision copy)] -.-> RS
-    L[(Inverted index)] -.-> BM
-```
+<p align="center">
+  <img src="docs/assets/llama_results.svg" alt="Llama 3.2 claim verification macro-F1: 1B 0.262 raw, 0.385 calibrated; 3B 0.431 raw, 0.514 calibrated" width="760">
+</p>
 
-Everything from the scan through the index remap is device-resident and can be replayed from
-a single captured **CUDA graph**. Only the final `k` indices and scores cross to the host.
+---
 
-## The kernel story
+## How it works
 
-The first version of the scan was correct, passed every test, and was quietly slow: it
-launched **one 256-thread block per document**, and every block re-staged the 8-query tile
-(12 KB) into shared memory. At a million documents that is ~12 GB of redundant staging
-traffic to scan a corpus of 0.05–1.5 GB — a fixed cost that swamped the actual data, so
-float16, int8 and binary all ran at the same ~7.5 ms as float32. Quantization saved VRAM but
-no time.
+<p align="center">
+  <img src="docs/assets/zero_copy.svg" alt="A naive stack copies 4,000,000 bytes of scores to the CPU per query; this engine copies 80 bytes" width="900">
+</p>
 
-The rewrite (`src/cuda/similarity.cu`) is a **persistent** kernel: the grid is sized by
-`cudaOccupancyMaxActiveBlocksPerMultiprocessor` to exactly fill the GPU, each resident block
-stages the queries once, and its warps stride over the corpus — one **warp per document**,
-reading rows in 128-bit vectors (`float4`, 8 × `half`, 16 × `int8`) and the queries as `float4`
-from shared memory, then a butterfly shuffle reduction where lane *q* stores query *q*. Binary
-rows are only 48 bytes, so the Hamming kernel gives each **thread** a document. Every
-precision now runs within 6–12% of DRAM peak, and the fp32 path ties cuBLAS while also
-handling fp16, int8, binary, L2 and allow-masks, which cuBLAS cannot.
+1. **Embed.** A small neural network turns your claim into 384 numbers that capture its meaning.
+   Every abstract was converted the same way once, in advance, and lives in GPU memory.
+2. **Search (CUDA, from scratch).** One GPU kernel compares your 384 numbers with every stored
+   abstract. The stored data can be float32, float16, int8 or 1 bit per number — smaller means
+   faster and cheaper, at a measured accuracy cost.
+3. **Select (CUDA).** A recursive bitonic sorting network picks the best candidates, entirely
+   on the GPU. A second kernel re-scores them at full precision without leaving GPU memory.
+4. **Re-rank.** A cross-encoder reads the 100 best candidates alongside the claim and keeps the
+   top 3.
+5. **Judge (Llama 3.2).** Llama reads the claim and three abstracts **once** and the verdict is
+   read straight from its output scores — no text generation, no parsing, a real probability.
+   Then it writes the explanation, quoting abstracts as `[1]`–`[3]`, and each quote is checked.
 
-A new harness, `tests/cpp/test_scan_paths.cu`, checks all 44 combinations of storage type ×
-dimension (vectorized and scalar-fallback paths) × metric × mask × partial query tiles against
-CPU references.
+<details>
+<summary><b>Plain-English glossary</b></summary>
 
-## The zero-copy claim, precisely
+- **Embedding** — a list of numbers (here 384) that represents the meaning of a sentence.
+- **VRAM** — the graphics card's own memory. Fast, but separate from the CPU's.
+- **Memory bandwidth / roofline** — how fast the card can read its memory. Searching is limited
+  by this, so "90% of peak" means almost no room left to optimize.
+- **Quantization** — storing numbers with fewer bits (int8, 1 bit) to save memory and time.
+- **Cross-encoder** — a slower, more accurate model that reads the claim and a passage together.
+- **Macro-F1** — an accuracy score averaged over all three verdicts, so ignoring a rare one
+  (e.g. "Contradicted") is punished.
+- **Calibration** — correcting a model's habit of favoring one answer, using separate training data.
+- **Bootstrap interval** — a range for how much a result could change if the test set were
+  resampled; if it includes zero, the improvement isn't proven.
 
-What stays on the device:
+</details>
 
-- **Corpus embeddings** load into VRAM once at startup and are never re-uploaded per query.
-- The **scan** produces a `[batch, N]` score matrix in device memory.
-- The **BM25 stage** scatter-adds into a `[batch, N]` lexical vector, reduces its maximum,
-  and fuses it into the dense scores — three kernels, no host round trip.
-- The **top-K** consumes those `N` scores and emits `k` indices + scores in device memory.
-  Intermediate candidate sets ping-pong between two device scratch buffers.
-- The **rescore stage** reads the top-K index buffer *directly* as a gather list, re-scores
-  those rows against a higher-precision copy of the corpus, selects again, and remaps local
-  positions back to corpus indices. The coarse-to-exact hand-off is a device pointer.
+<details>
+<summary><b>The CUDA kernels in more detail</b></summary>
 
-What crosses the boundary, and why it is small:
+**Scan** (`src/cuda/similarity.cu`) — persistent, warp per document. The grid is sized to exactly
+fill the GPU (`cudaOccupancyMaxActiveBlocksPerMultiprocessor`); each resident block stages a tile
+of 8 queries into shared memory once, then its warps stride over the corpus, reading rows in
+128-bit loads (`float4`, 8 × `half`, 16 × `int8`) and finishing with a butterfly shuffle
+reduction. Binary rows are only 48 bytes, so the Hamming kernel gives each *thread* a document
+(`__popc` over `uint4` loads). It falls back to a scalar path when a row doesn't divide into
+16-byte vectors. A 44-case test sweeps every combination against a CPU reference.
 
-- The query embedding (384 floats per query) is uploaded per request — negligible.
-- After selection, **only the `k` indices and scores** (a few hundred bytes) are copied back,
-  through **page-locked** staging, solely to look up passage text for the cross-encoder and
-  Llama. This is the single explicit transfer, in `Searcher::copyResultToHost` — measured at
-  **0.076 ms**.
+**Top-K** (`src/cuda/topk.cu`) — local bitonic sort of 1024-element tiles, then recursive 4096-
+element merge passes that shrink the candidate set at least 4× each, so corpus size is bounded
+only by VRAM. At k = 100 over 1M scores it takes 0.53 ms — now the largest remaining cost.
 
-What a naive stack does instead: copies the entire `N`-element score array to the host and
-argsorts on the CPU; and for quantized retrieval, copies candidate ids back so the host can
-re-fetch full-precision vectors and rescore. This engine deletes both round trips.
+**Rescore** (`src/cuda/rescore.cu`) — reads candidate ids straight from the top-K output buffer
+as a gather list; **BM25** (`src/cuda/lexical.cu`) — scatter-add over a CSR inverted index,
+fused into the dense scores on-device. Full write-up: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-Honest caveat: passage *text* lives on the host, so the cross-encoder and Llama tokenize on
-the CPU and then run on the GPU. The transfers eliminated are the score vector and the
-candidate **selection/rescore** round trips, not tokenization.
+</details>
 
-## Quickstart
+---
+
+## What Llama does here
+
+Four jobs, each evaluated separately in [`docs/LLAMA.md`](docs/LLAMA.md):
+
+1. **Verdict** — one forward pass, logits computed in float32 from only the three label rows,
+   then calibrated.
+2. **Cited explanation** — streamed live; every quotation is machine-checked
+   (`check_quotes`): in a 100-claim audit **121 of 137 quotations (88%) were verbatim in the abstract they cited**; 13 were not found word for word and 3 were credited to the wrong abstract, all flagged on screen. 70 of 100 explanations were fully verified; 14 contained no quotation to check.
+3. **Zero-shot reranking** — query-likelihood and yes/no scoring, fused with the cross-encoder.
+4. **Grounded Q&A** — answers only from retrieved abstracts, with `[n]` citations (`--ask`, `POST /ask`).
+   A demonstration rather than a benchmarked result; use the 3B model.
+
+---
+
+## Try it
 
 ```bash
-bash scripts/download_all.sh     # ONNX Runtime + Python deps + encoder/reranker + SciFact + indexes
-bash scripts/download_llama.sh   # Llama 3.2 3B + 1B Instruct, SciFact verdict labels
+bash scripts/download_all.sh     # ONNX Runtime, Python deps, encoder + reranker, SciFact, indexes
+bash scripts/download_llama.sh   # Llama 3.2 3B + 1B, plus the SciFact verdict labels
 bash scripts/build.sh            # compile the CUDA/C++ engine and Python bindings
-bash scripts/verify.sh           # 9 CUDA test suites + end-to-end checks
-bash scripts/run_factcheck.sh    # fact-check a claim end to end
+bash scripts/verify.sh           # 9 CUDA suites + end-to-end checks
+bash scripts/run_factcheck.sh    # fact-check a claim
 ```
 
 ```bash
@@ -211,213 +260,63 @@ CLAIM="Statins increase the risk of type 2 diabetes." bash scripts/run_factcheck
 python python/examples/fact_check.py --llama models/llama/Llama-3.2-3B-Instruct \
     --ask "What links obesity to insulin resistance?"
 python -m zcgvs_tools.service --config configs/scifact.json \
-    --llama models/llama/Llama-3.2-3B-Instruct          # adds POST /verify and POST /ask
+    --llama models/llama/Llama-3.2-3B-Instruct       # HTTP: /search, /verify, /ask, ...
+bash scripts/bench_all.sh        # reproduce every performance number
 ```
 
-Full walkthroughs: [DOWNLOAD](docs/DOWNLOAD.md) → [RUN](docs/RUN.md) → [VERIFY](docs/VERIFY.md)
-→ [BENCHMARKS](docs/BENCHMARKS.md) → [LLAMA](docs/LLAMA.md). To understand every line,
-[LEARNING](docs/LEARNING.md) maps each concept to the exact file it explains.
-
-**No training anywhere.** Every model is a downloaded checkpoint (ONNX exports of
-`all-MiniLM-L6-v2` and `ms-marco-MiniLM-L6-v2`, and Llama 3.2 in bf16); every quantized corpus
-is a deterministic transform of the float32 one; the only fitted parameters are Llama's three
-calibration offsets, fitted on SciFact's train split.
-
-## Features
-
-| Feature | Where | One-liner |
-| --- | --- | --- |
-| Four storage precisions | `ScalarType`, `similarity.cu` | fp32 / fp16 / **int8** / **binary**, each at 88–94% of DRAM peak |
-| On-device rescoring | `rescore.cu`, `Searcher` | Coarse candidates are re-scored exactly without touching the host |
-| Batched multi-query scan | `similarity.cu` | One corpus row read serves 8 queries — 1 428 queries/s at 1M docs |
-| Recursive top-K merge | `topk.cu` | Merge passes recurse, so corpus size is no longer capped |
-| CUDA graph replay | `Searcher` | The whole device pipeline replays from one instantiated graph |
-| Hybrid BM25 + dense | `lexical.cu` | GPU scatter-add over a CSR inverted index, fused into the dense scores on-device |
-| cuBLAS reference backend | `cublas_similarity.cpp` | The vendor GEMV, for benchmarking the hand-written kernel honestly |
-| Metrics + filtering | `Metric`, device mask | Cosine / dot / L2, and an allow-mask evaluated inside the scan |
-| Incremental indexing | `EmbeddingStore::append` | Embed and append to the live VRAM index, quantizing on the device |
-| Stage timing + NVTX | CUDA events, `nvtx.hpp` | Per-stage latency through the API; Nsight ranges behind a build flag |
-| **Llama claim verifier** | `factcheck.ClaimVerifier` | Calibrated 3-way verdict in one forward pass + streamed, cited explanation |
-| **Llama reranker** | `factcheck.LlamaReranker` | Zero-shot query-likelihood (UPR) or yes/no scoring, fused with the cross-encoder |
-| **Grounded Q&A** | `factcheck.GroundedAnswerer` | Answers only from retrieved abstracts, with `[n]` citations |
-| HTTP service | `zcgvs_tools.service` | `/search`, `/search/batch`, `/retrieve`, `/documents`, `/stats`, **`/verify`**, **`/ask`** |
-| Kernel roofline bench | `apps/bench_kernels.cu` | GB/s vs theoretical peak, on synthetic data — no artifacts needed |
-
-Full details and API in [`docs/FEATURES.md`](docs/FEATURES.md).
-
-## Repository layout
-
-```text
-include/zcgvs/          public headers, one directory per module
-  core/                 CUDA RAII (device buffer, pinned buffer, stream, errors, device info)
-  data/                 on-disk formats, VRAM embedding store, corpus metadata, lexical index
-  cuda/                 kernel launchers + device primitives (reduction, bitonic, decode)
-  search/               device-resident search orchestration, params, results
-  text/                 BERT WordPiece tokenizer
-  onnx/                 ONNX Runtime session wrapper (CUDA execution provider)
-  embed/                bi-encoder query embedder (interface + ONNX impl)
-  rerank/               cross-encoder reranker (interface + ONNX impl + factory)
-  engine/               top-level engine, config, options, stats, result types
-src/                    implementations mirroring include/
-bindings/python/        pybind11 module (zcgvs_engine)
-apps/                   C++ CLI + synthetic kernel benchmark
-tests/cpp/              nine CUDA correctness harnesses vs CPU references
-tests/python/           wire-format round-trip tests (NumPy only, no GPU)
-python/zcgvs_tools/     export, embed, quantize, lexical index, config, service,
-                        llama.py (runtime), factcheck.py (verifier, reranker, Q&A),
-                        scifact_claims.py (verdict labels)
-python/benchmarks/      end-to-end latency, retrieval quality, Llama evaluation
-python/examples/        quickstart.py, fact_check.py
-configs/                engine configs, one per variant; calibration/ for Llama label offsets
-docs/                   the documentation set; results/ holds raw evaluation JSON
-scripts/                download + build + verify + demo + benchmark automation
-```
-
-## The CUDA kernels
-
-**Scan** (`src/cuda/similarity.cu`) — persistent, warp per document, 128-bit loads, query
-tile of 8 staged once per resident block. Templated on the storage type and vector width,
-converting to FP32 in registers:
-
-- **fp32 / fp16** — `float4` or 8 × `half` per lane, widened with `__half22float2`.
-- **int8** — 16 values per lane, dequantized with a matrix-wide scale carried in the file
-  header. Asymmetric: the query stays FP32, so only the corpus side loses precision.
-- **binary** — a separate thread-per-document kernel: query and corpus are packed to one sign
-  bit per dimension, compared with `__popc(a ^ b)` over `uint4` loads, mapped to a cosine-like
-  score in [-1, 1].
-
-All of them honour the metric selector and the optional device allow-mask in one code path,
-and fall back to a scalar instantiation when a row does not divide into 16-byte vectors.
-
-**Top-K selection** (`src/cuda/topk.cu`). Two kinds of pass, recursing:
-
-1. *Local pass* — each block loads a 1024-element tile of scores (padding with `-inf`),
-   bitonically sorts it in shared memory, and writes its top-`k` to scratch.
-2. *Merge passes* — blocks load 4096-element tiles of the surviving candidates, sort, and
-   emit top-`k` each, ping-ponging between two scratch buffers until one block remains.
-
-Because a merge tile is 4096 and `k ≤ 1024`, every merge pass shrinks the candidate set by at
-least 4×, so the recursion provably terminates and corpus size is bounded only by VRAM. Now
-that the scan is at roofline, top-K is the next bottleneck (0.53 ms at k = 100 over 1M
-scores); a radix-select first pass is the obvious next kernel.
-
-**Rescore** (`src/cuda/rescore.cu`). One block per candidate, reading the index straight out
-of the top-K output buffer, scoring against the exact-precision store, then a second top-K
-and a remap kernel that turns candidate-set positions back into corpus indices.
-
-**BM25** (`src/cuda/lexical.cu`). One block per query term, threads striding over that term's
-postings, `atomicAdd` into the score vector. All BM25 arithmetic is precomputed into the
-posting weights offline, so the device does a pure scatter-add, then a block-reduced
-`atomicMax` for normalization and an element-wise fuse.
-
-Every kernel is checked against a CPU reference (`tests/cpp/`), including the exact
-quantization and bit-packing conventions.
-
-## Retrieval quality
-
-All 300 BEIR SciFact test queries, top-100 candidates reranked by the cross-encoder:
-
-| Config | Storage | VRAM | Recall@10 | nDCG@10 | GPU ms |
-| --- | --- | ---: | ---: | ---: | ---: |
-| `scifact.json` | float32 | 8.0 MB | 0.7982 | 0.6807 | 0.075 |
-| `scifact_int8.json` | int8 | 2.0 MB | 0.7982 | 0.6807 | 0.061 |
-| `scifact_binary_rescore.json` | binary + fp32 rescore | 8.2 MB | 0.7932 | 0.6787 | 0.164 |
-| `scifact_hybrid.json` | fp16 + BM25 | 10.7 MB | 0.7882 | 0.6778 | 0.086 |
-
-int8 is free. Hybrid BM25 is slightly *worse* on SciFact, whose claims are paraphrastic;
-the full methodology and sweeps are in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
-
-## Building
-
-Dependencies:
-
-- CUDA Toolkit 12.x or 13.x (compute capability 7.0+); cuBLAS and NVTX ship with it
-- ONNX Runtime GPU build — `scripts/download_onnxruntime.sh` fetches it
-- `pybind11`, CMake ≥ 3.24, a C++17 host compiler
-- For the Llama layer: PyTorch with CUDA and `transformers` ≥ 4.56 (`python/requirements.txt`)
-
-```bash
-cmake -B build -S . \
-  -DONNXRUNTIME_ROOT=/path/to/onnxruntime-linux-x64-gpu \
-  -Dpybind11_DIR=$(python -m pybind11 --cmakedir)
-cmake --build build -j
-ctest --test-dir build
-```
-
-Options: `-DZCGVS_ENABLE_NVTX=ON` for Nsight ranges, `-DZCGVS_BUILD_APPS=OFF`,
-`-DZCGVS_BUILD_TESTS=OFF`, `-DZCGVS_BUILD_PYTHON=OFF`. At runtime the ONNX Runtime shared
-library must be on the loader path (`LD_LIBRARY_PATH=$ONNXRUNTIME_ROOT/lib`).
-
-## Usage
+Needs an NVIDIA GPU: Llama peaks at 6.8 GB (3B) or 3.4 GB (1B), plus the search index and ONNX models
+(the whole 3B demo measured about 8.5 GB),
+CUDA (tested on 13.3), CMake ≥ 3.24 and a C++17 compiler. The official `meta-llama/*` repos are gated; if
+your Hugging Face account lacks access, the download falls back to an identical mirror of the same
+weights, which the Llama 3.2 license permits.
 
 ```python
 from zcgvs_tools.config import build_engine
 from zcgvs_tools.factcheck import ClaimVerifier
 from zcgvs_tools.llama import Llama
 
-engine = build_engine("configs/scifact_int8.json")
-
-options = engine.default_options()
-options.top_k, options.candidates = 10, 100
-response = engine.search_with("what causes type 2 diabetes", options)
-for hit in response.hits:
-    print(hit.doc_id, hit.rerank_score, hit.text[:80])
-print(response.timing.search_gpu_ms, response.timing.total_ms)
-
-batch = engine.search_batch(["query one", "query two", "query three"], options)
-
-llama = Llama("meta-llama/Llama-3.2-3B-Instruct")       # or models/llama/Llama-3.2-3B-Instruct
+engine = build_engine("configs/scifact.json")
+llama = Llama("models/llama/Llama-3.2-3B-Instruct")
 verdict = ClaimVerifier(engine, llama).verify("Aspirin reduces colorectal cancer risk.")
-print(verdict.label, verdict.probabilities, verdict.explanation)
+print(verdict.label, verdict.probabilities, verdict.quotes_verified)
 ```
 
-The C++ CLI and the HTTP service are documented in [`docs/RUN.md`](docs/RUN.md); the full API
-surface is in [`docs/API.md`](docs/API.md); the Llama layer in [`docs/LLAMA.md`](docs/LLAMA.md).
+---
 
-## Runtime choices
+## What's inside
 
-**Cross-encoder: ONNX Runtime, not LibTorch.** TorchScript is deprecated as of PyTorch 2.10.
-The reranker is exported with `optimum` and run with ONNX Runtime's C++ API on the CUDA
-execution provider, behind an abstract `Reranker` interface so another backend could be added
-without touching the engine or the kernels.
+| | |
+| --- | --- |
+| `src/cuda/`, `include/zcgvs/` | The CUDA kernels and C++ engine (scan, top-K, rescore, BM25, CUDA graphs) |
+| `python/zcgvs_tools/llama.py`, `factcheck.py` | Llama runtime, verifier, reranker, grounded Q&A, quote checker |
+| `python/benchmarks/` | Retrieval quality, end-to-end latency, and the Llama evaluation |
+| `tests/` | 9 CUDA suites against CPU references; Python tests for the logic |
+| `scripts/` | Download, build, verify, benchmark and demo scripts; `make_figures.py` regenerates the README figures from the results files |
+| `docs/` | [Architecture](docs/ARCHITECTURE.md) · [Benchmarks](docs/BENCHMARKS.md) · [Llama](docs/LLAMA.md) · [Features](docs/FEATURES.md) · [API](docs/API.md) · [Learning path](docs/LEARNING.md) |
 
-**Llama: PyTorch + transformers, bf16, SDPA attention.** The Llama layer is Python because
-it composes models rather than kernels: everything performance-critical below it is the C++
-engine, and the Llama-side hot paths are written to avoid waste — label scoring and query
-likelihood touch only the LM-head rows they need, in fp32, and verdicts never decode.
+Features beyond the headline: four storage precisions with on-device rescoring, batched multi-query
+scans, CUDA-graph replay, hybrid BM25 + dense search, cosine/dot/L2 metrics, filtered search,
+incremental indexing, NVTX profiling hooks, and a FastAPI service — all in
+[`docs/FEATURES.md`](docs/FEATURES.md).
 
-## Definition of done
+---
 
-- [x] Loads a real BEIR corpus into VRAM and answers text queries end-to-end
-- [x] Scan, top-K, rescore, BM25 and fusion are hand-written CUDA kernels, each checked
-      against a CPU reference
-- [x] Every storage precision scans at ≥ 88% of DRAM peak; fp32 ties cuBLAS
-- [x] Candidate indices stay on-device between search, rescore and rerank; the only host
-      transfer is the explicit pinned `copyResultToHost`
-- [x] Four storage precisions down to 1 bit per dimension, with an exact-precision rescore
-      stage to buy the accuracy back
-- [x] The device pipeline is capturable and replayable as a CUDA graph
-- [x] `import zcgvs_engine` works from Python via pybind11
-- [x] Llama 3.2 verifies claims with calibrated probabilities and cited explanations, reranks
-      zero-shot, and answers grounded questions — each evaluated on SciFact with numbers
-      reported, including the negative ones
-- [x] Architecture, zero-copy accounting, runtime choices, wire formats, benchmark and
-      evaluation methodology are all documented
+## Scope and honest limits
 
-## Limitations
+- **Exact search by design.** There is no approximate index (HNSW/IVF); correctness you can
+  measure was the goal. The 1M-document numbers are synthetic kernel benchmarks; end-to-end
+  quality is measured on SciFact (5,183 abstracts).
+- **Small models, on purpose.** Llama 3.2 1B/3B are what fit beside the index on a 16 GB card.
+  The verdict is claim-level, not per-abstract, and the calibration is fitted to SciFact.
+- **Explanations are generated text.** The quote checker catches invented and misattributed
+  quotations, not imperfect paraphrase — which is why the evidence is always printed beside the
+  verdict.
+- **Llama alone doesn't out-rank the trained cross-encoder**; its value is in fusion and in
+  reading the evidence.
+- **"Zero-copy" has a boundary.** Passage text lives on the CPU, so tokenization stays there;
+  what is eliminated is the score-vector and candidate-selection round trips.
 
-- Exact brute-force search only; no approximate index (HNSW/IVF) — deliberate scope.
-- `k` and the rescore width are capped at 1024 by the shared-memory bitonic network.
-- The cuBLAS backend covers float32 inner-product metrics without a mask; anything else
-  falls back to the custom kernel automatically.
-- Incremental `add_documents` is refused while a rescore store or lexical index is attached.
-- The C++ tokenizer implements BERT uncased basic + WordPiece tokenization; it does not do
-  Unicode accent stripping or CJK segmentation (adequate for the English BEIR sets).
-- Llama 3.2 1B/3B are what fit beside the index in bf16 on 16 GB; the verifier labels claims,
-  not individual abstracts or rationale sentences, and its calibration is fitted to SciFact.
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the data-flow and device-residency
-deep dive, and [`docs/FORMATS.md`](docs/FORMATS.md) for the byte-level wire specs.
+---
 
 Llama 3.2 is licensed under the [Llama 3.2 Community License](https://www.llama.com/llama3_2/license/),
 Copyright © Meta Platforms, Inc. All Rights Reserved.
