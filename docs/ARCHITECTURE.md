@@ -70,28 +70,47 @@ Two levers actually move it, and the engine pulls both:
 
 1. **Read fewer bytes.** The storage ladder cuts `row_stride` by 2×, 4× or 32×. This is the
    larger lever and it is why quantization is a first-class feature rather than an option.
-2. **Reuse each byte.** Each block stages up to `kQueryTile = 8` queries in shared memory and
-   uses every loaded corpus element eight times before discarding it. Intensity rises from ~1
-   to ~8 FLOP per element loaded, which moves the kernel off the bandwidth wall.
+2. **Reuse each byte.** Each resident block stages up to `kQueryTile = 8` queries in shared
+   memory and uses every loaded corpus element eight times before discarding it. Intensity
+   rises from ~1 to ~8 FLOP per element loaded, which moves the kernel off the bandwidth wall.
 
 ```cpp
-for (int t = threadIdx.x; t < dim; t += blockDim.x) {
-    const float value = decodeStorage(row[t], scale);   // one global load
-    #pragma unroll
-    for (int q = 0; q < kQueryTile; ++q) {              // eight uses
-        if (q < tile) accumulateMetric(metric, shared_queries[q * dim + t], value, partial[q]);
+// one warp per document, persistent over the corpus
+for (int doc = blockIdx.x * warps + warp; doc < doc_count; doc += gridDim.x * warps) {
+    for (int base = lane * kVec; base < dim; base += 32 * kVec) {
+        float values[kVec];
+        loadRow<Storage, kVec>(row + base, scale, values);   // one 128-bit global load
+        #pragma unroll
+        for (int q = 0; q < kQueryTile; ++q) {               // eight uses of each element
+            if (q < tile) { /* float4 shared reads of query q, accumulate into partial[q] */ }
+        }
     }
+    // butterfly-reduce partial[q] across the warp; lane q stores query q's score
 }
 ```
 
 The `#pragma unroll` with a compile-time bound and a runtime `if (q < tile)` guard matters:
 without it `partial[q]` is a runtime-indexed array and spills to local memory, which would
-undo the whole optimization. The reduction loop is unrolled for the same reason, with each
-query getting its own slice of the shared warp-sum array so no barrier is needed between them.
+undo the whole optimization.
 
-Block-uniform early exits (document out of range, masked document) are safe because every
-thread in a block evaluates the same predicate — a divergent `return` before a
-`__syncthreads()` would deadlock.
+**Persistent, warp-per-document.** The grid is sized by
+`cudaOccupancyMaxActiveBlocksPerMultiprocessor` to exactly fill the GPU, and each block's warps
+then stride over the whole corpus. That is what makes query staging a one-off cost. The first
+version of this kernel launched one block per document instead, and re-staged the 12 KB query
+tile in every block — at 1M documents, ~12 GB of shared-memory fill traffic to scan a 0.05–1.5
+GB corpus. It was correct, it passed every test, and it ran every storage precision at the same
+speed (7–8 ms), because the fixed per-block cost dwarfed the corpus bytes. The rewrite runs at
+88–94% of DRAM peak for all four precisions (`docs/BENCHMARKS.md`).
+
+Rows are read in 128-bit transactions — `float4`, 8 × `half` or 16 × `int8` per lane — whenever
+`dim` divides into 16-byte vectors and the store is 16-byte aligned; otherwise a scalar
+instantiation of the same template runs. Binary rows (48 bytes at 384 dims) are too short to
+split across a warp, so the Hamming kernel gives each *thread* a document and three `uint4`
+loads.
+
+The only `__syncthreads()` is before the document loop, so the masked-document `continue` and
+the warp-shuffle reduction need only be *warp*-uniform, and they are: every lane of a warp is
+on the same document.
 
 ## Top-K in recursive bitonic passes
 
